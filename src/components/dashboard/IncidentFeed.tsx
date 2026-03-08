@@ -203,7 +203,7 @@ const IncidentFeed = ({ onSelectIncident, selectedIncident, cityFilter, onCityFi
         ) : (
           filtered.map((incident, idx) => (
             <IncidentCard
-              key={incident.id}
+              key={`${incident.id}-${idx}`}
               incident={incident}
               isSelected={selectedIncident?.id === incident.id}
               onClick={() => onSelectIncident(incident)}
