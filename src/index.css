@@ -185,9 +185,7 @@
   font-size: 12px !important;
 }
 
-.leaflet-tile-pane {
-  filter: brightness(0.55) saturate(0.25) hue-rotate(180deg) invert(1);
-}
+/* Dark CARTO tiles already dark — no inversion needed */
 
 /* Scrollbar */
 ::-webkit-scrollbar {
