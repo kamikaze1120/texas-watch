@@ -105,6 +105,7 @@ const TacticalMap = ({ selectedIncident, cityFilter }: TacticalMapProps) => {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>'
         />
 
+        <FlyToCity cityFilter={cityFilter} />
         <FlyToIncident incident={selectedIncident} />
 
         {filteredCalls.map((call, idx) => {
