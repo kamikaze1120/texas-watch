@@ -45,6 +45,11 @@ function mapCallTypeToIncidentType(callType: string): IncidentType {
   return 'alert';
 }
 
+function toFiniteCoord(value: unknown, fallback: number): number {
+  const parsed = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 export function dispatchToIncident(call: DispatchCall): Incident {
   return {
     id: call.id,
@@ -52,8 +57,8 @@ export function dispatchToIncident(call: DispatchCall): Incident {
     title: call.callType,
     description: call.description,
     location: call.location,
-    lat: call.lat || 31.0,
-    lng: call.lng || -99.5,
+    lat: toFiniteCoord(call.lat, 31.0),
+    lng: toFiniteCoord(call.lng, -99.5),
     timestamp: call.timestamp,
     severity: call.severity,
     source: call.source,
