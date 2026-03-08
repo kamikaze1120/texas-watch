@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.live-data]
 verify_jwt = false
+
+[functions.dispatch-data]
+verify_jwt = false
