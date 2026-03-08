@@ -20,7 +20,7 @@ interface DispatchCall {
   lng?: number;
 }
 
-// ── City center coordinates for approximate geocoding ──
+// City centers for approximate geocoding when no coords available
 const CITY_COORDS: Record<string, { lat: number; lng: number; spread: number }> = {
   'Austin':      { lat: 30.2672, lng: -97.7431, spread: 0.12 },
   'Dallas':      { lat: 32.7767, lng: -96.7970, spread: 0.15 },
@@ -30,7 +30,6 @@ const CITY_COORDS: Record<string, { lat: number; lng: number; spread: number }> 
 
 function approximateCoords(city: string, id: string): { lat: number; lng: number } {
   const base = CITY_COORDS[city] || CITY_COORDS['Austin'];
-  // Deterministic offset from id hash
   let hash = 0;
   for (let i = 0; i < id.length; i++) {
     hash = ((hash << 5) - hash) + id.charCodeAt(i);
@@ -41,64 +40,62 @@ function approximateCoords(city: string, id: string): { lat: number; lng: number
   return { lat: base.lat + latOff, lng: base.lng + lngOff };
 }
 
-// ── Severity mapping ──
-function mapPriority(priority: string | undefined): 'critical' | 'high' | 'medium' | 'low' {
-  switch (priority?.toString()) {
-    case '0': case '1': return 'critical';
-    case '2': return 'high';
-    case '3': return 'medium';
-    default: return 'low';
-  }
-}
-
 function mapCallSeverity(callType: string, priority?: string): 'critical' | 'high' | 'medium' | 'low' {
   const ct = callType.toLowerCase();
-  // Critical keywords
   if (ct.includes('shooting') || ct.includes('shots fired') || ct.includes('homicide') || 
       ct.includes('active shooter') || ct.includes('kidnap') || ct.includes('stabbing') ||
-      ct.includes('officer down') || ct.includes('major accident') || ct.includes('major dist')) return 'critical';
-  // High keywords  
+      ct.includes('officer down') || ct.includes('major accident') || ct.includes('major dist') ||
+      ct.includes('fatality') || ct.includes('crash') || ct.includes('pursuit')) return 'critical';
   if (ct.includes('robbery') || ct.includes('assault') || ct.includes('weapon') || 
-      ct.includes('burglary in progress') || ct.includes('burg') && ct.includes('progress') ||
-      ct.includes('injury') || ct.includes('ambulance') || ct.includes('emergency') ||
-      ct.includes('accident') || ct.includes('hit and run')) return 'high';
-  // Medium keywords
+      ct.includes('burg') || ct.includes('injury') || ct.includes('ambulance') || 
+      ct.includes('emergency') || ct.includes('accident') || ct.includes('hit and run') ||
+      ct.includes('hazard') || ct.includes('reckless') || ct.includes('dui') || ct.includes('stall')) return 'high';
   if (ct.includes('theft') || ct.includes('suspicious') || ct.includes('disturbance') || 
-      ct.includes('trespass') || ct.includes('alarm') || ct.includes('domestic')) return 'medium';
-  // Fall back to priority number
-  if (priority) return mapPriority(priority);
+      ct.includes('trespass') || ct.includes('alarm') || ct.includes('domestic') ||
+      ct.includes('collision') || ct.includes('traffic')) return 'medium';
+  if (priority) {
+    switch (priority.toString().replace(/\D/g, '')) {
+      case '0': case '1': return 'critical';
+      case '2': return 'high';
+      case '3': return 'medium';
+    }
+  }
   return 'low';
 }
 
-// ── Austin: APD CAD Incidents ──
+// ── Austin: Real-Time Traffic Incidents (has live lat/lng) ──
 async function fetchAustin(): Promise<DispatchCall[]> {
   try {
-    const url = 'https://data.austintexas.gov/resource/22de-7rzg.json?$order=call_datetime%20DESC&$limit=50&$where=call_datetime%3E%272025-01-01%27';
+    const url = 'https://data.austintexas.gov/resource/dx9v-zd7x.json?$order=published_date%20DESC&$limit=40&$where=traffic_report_status=%27ACTIVE%27%20OR%20published_date%3E%272026-03-07%27';
     const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
-    if (!res.ok) { console.error(`Austin API: ${res.status}`); return []; }
+    if (!res.ok) {
+      console.error(`Austin traffic API: ${res.status}`);
+      // Fallback: get recent regardless of status
+      const res2 = await fetch('https://data.austintexas.gov/resource/dx9v-zd7x.json?$order=published_date%20DESC&$limit=40', { headers: { 'Accept': 'application/json' } });
+      if (!res2.ok) return [];
+      const data2 = await res2.json();
+      return mapAustinData(data2);
+    }
     const data = await res.json();
-    return data.map((r: any) => {
-      const id = `AUS-${r.incident_number || r.cad_incident_number || Math.random().toString(36).substr(2, 8)}`;
-      const hasCoords = r.latitude && r.longitude;
-      const coords = hasCoords 
-        ? { lat: parseFloat(r.latitude), lng: parseFloat(r.longitude) }
-        : approximateCoords('Austin', id);
-      return {
-        id,
-        city: 'Austin',
-        callType: r.problem || r.call_type || 'Unknown',
-        description: r.initial_problem_description || r.problem || '',
-        location: r.address || r.block || 'Austin, TX',
-        timestamp: r.call_datetime || r.response_datetime || new Date().toISOString(),
-        status: r.disposition || r.call_status || 'Active',
-        priority: r.priority || '3',
-        severity: mapCallSeverity(r.problem || r.call_type || '', r.priority),
-        source: 'Austin PD CAD',
-        lat: coords.lat,
-        lng: coords.lng,
-      };
-    });
+    return mapAustinData(data);
   } catch (err) { console.error('Austin fetch error:', err); return []; }
+}
+
+function mapAustinData(data: any[]): DispatchCall[] {
+  return data.map((r: any) => ({
+    id: `AUS-${r.traffic_report_id?.slice(0, 12) || Math.random().toString(36).substr(2, 8)}`,
+    city: 'Austin',
+    callType: r.issue_reported || 'Traffic Incident',
+    description: `${r.issue_reported || ''} - ${r.address || ''}`,
+    location: r.address || 'Austin, TX',
+    timestamp: r.published_date || new Date().toISOString(),
+    status: r.traffic_report_status || 'Active',
+    priority: '3',
+    severity: mapCallSeverity(r.issue_reported || ''),
+    source: (r.agency || 'Austin PD').trim(),
+    lat: r.latitude ? parseFloat(r.latitude) : undefined,
+    lng: r.longitude ? parseFloat(r.longitude) : undefined,
+  }));
 }
 
 // ── Dallas: Police Active Calls ──
@@ -112,8 +109,7 @@ async function fetchDallas(): Promise<DispatchCall[]> {
       const id = `DAL-${r.incident_number || Math.random().toString(36).substr(2, 8)}`;
       const coords = approximateCoords('Dallas', id);
       return {
-        id,
-        city: 'Dallas',
+        id, city: 'Dallas',
         callType: r.nature_of_call || r.type_of_incident || 'Unknown',
         description: r.nature_of_call || r.type_of_incident || '',
         location: `${r.block || ''} ${r.location || ''}`.trim() || 'Dallas, TX',
@@ -122,32 +118,36 @@ async function fetchDallas(): Promise<DispatchCall[]> {
         priority: r.priority || '3',
         severity: mapCallSeverity(r.nature_of_call || r.type_of_incident || '', r.priority),
         source: 'Dallas PD',
-        lat: coords.lat,
-        lng: coords.lng,
+        lat: coords.lat, lng: coords.lng,
       };
     });
   } catch (err) { console.error('Dallas fetch error:', err); return []; }
 }
 
-// ── Houston: HPD Incidents ──
+// ── Houston: Real-Time Police Incidents ──
 async function fetchHouston(): Promise<DispatchCall[]> {
   try {
-    const url = 'https://data.houstontx.gov/api/3/action/datastore_search?resource_id=f9db5fb6-7a6d-4d87-b06f-e3bfae982e54&limit=30&sort=_id%20desc';
+    // Try the real-time police incidents feed
+    const url = 'https://data.houstontx.gov/resource/gxch-d37s.json?$order=date%20DESC&$limit=40';
     const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
-    if (!res.ok) return await fetchHoustonFallback();
+    if (!res.ok) {
+      console.error(`Houston primary API: ${res.status}`);
+      return await fetchHoustonFallback();
+    }
     const data = await res.json();
-    if (!data.result?.records?.length) return await fetchHoustonFallback();
-    return data.result.records.map((r: any) => {
-      const id = `HOU-${r.Incident || r._id || Math.random().toString(36).substr(2, 8)}`;
-      const coords = approximateCoords('Houston', id);
+    if (!data.length) return await fetchHoustonFallback();
+    return data.map((r: any) => {
+      const id = `HOU-${r.incident || r._id || Math.random().toString(36).substr(2, 8)}`;
+      const hasCoords = r.latitude && r.longitude;
+      const coords = hasCoords ? { lat: parseFloat(r.latitude), lng: parseFloat(r.longitude) } : approximateCoords('Houston', id);
       return {
         id, city: 'Houston',
-        callType: r.Offense_Type || r.offense_type || 'Unknown',
-        description: r.Offense_Type || '',
-        location: `${r.Block_Range || ''} ${r.Street_Name || ''}`.trim() || 'Houston, TX',
-        timestamp: r.Date || r.Occurrence_Date || new Date().toISOString(),
+        callType: r.offense_type || r.offensetype || r.type || 'Police Incident',
+        description: r.offense_type || r.type || '',
+        location: `${r.block_range || r.blockrange || ''} ${r.street_name || r.streetname || ''}`.trim() || 'Houston, TX',
+        timestamp: r.date || r.occurrence_date || new Date().toISOString(),
         status: 'Reported', priority: '3',
-        severity: mapCallSeverity(r.Offense_Type || r.offense_type || ''),
+        severity: mapCallSeverity(r.offense_type || r.offensetype || r.type || ''),
         source: 'Houston PD',
         lat: coords.lat, lng: coords.lng,
       };
@@ -157,48 +157,55 @@ async function fetchHouston(): Promise<DispatchCall[]> {
 
 async function fetchHoustonFallback(): Promise<DispatchCall[]> {
   try {
-    const url = 'https://data.houstontx.gov/api/3/action/datastore_search?resource_id=57124b23-0161-4a74-8329-4e04d4087c48&limit=20&sort=_id%20desc';
+    // Try alternate endpoint
+    const url = 'https://data.houstontx.gov/resource/djfr-ym8d.json?$order=date%20DESC&$limit=30';
     const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
     if (!res.ok) return [];
     const data = await res.json();
-    if (!data.result?.records) return [];
-    return data.result.records.map((r: any) => {
+    return data.map((r: any) => {
       const id = `HOU-${r._id || Math.random().toString(36).substr(2, 8)}`;
       const coords = approximateCoords('Houston', id);
       return {
         id, city: 'Houston',
-        callType: r.offense_type || r.Offense_Type || 'Police Incident',
+        callType: r.offense_type || 'Police Incident',
         description: r.offense_type || '',
         location: `${r.block_range || ''} ${r.street_name || ''}`.trim() || 'Houston, TX',
         timestamp: r.date || new Date().toISOString(),
         status: 'Reported', priority: '3',
-        severity: 'medium' as const, source: 'Houston PD',
+        severity: mapCallSeverity(r.offense_type || ''),
+        source: 'Houston PD',
         lat: coords.lat, lng: coords.lng,
       };
     });
   } catch (err) { return []; }
 }
 
-// ── San Antonio: SAPD Calls ──
+// ── San Antonio: SAFFE Incidents ──
 async function fetchSanAntonio(): Promise<DispatchCall[]> {
   try {
-    const url = 'https://data.sanantonio.gov/api/3/action/datastore_search?resource_id=calls-for-service&limit=30&sort=_id%20desc';
+    // Use Socrata-based SAPD dataset  
+    const url = 'https://data.sanantonio.gov/resource/jbp5-7mfg.json?$order=report_date%20DESC&$limit=30';
     const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
-    if (!res.ok) return await fetchSanAntonioAlternate();
+    if (!res.ok) {
+      console.error(`San Antonio API: ${res.status}`);
+      return await fetchSanAntonioFallback();
+    }
     const data = await res.json();
-    if (!data.result?.records?.length) return await fetchSanAntonioAlternate();
-    return data.result.records.map((r: any) => {
-      const id = `SAT-${r.INCIDENTID || r._id || Math.random().toString(36).substr(2, 8)}`;
-      const coords = approximateCoords('San Antonio', id);
+    if (!data.length) return await fetchSanAntonioFallback();
+    return data.map((r: any) => {
+      const id = `SAT-${r.case_number || r.incidentid || Math.random().toString(36).substr(2, 8)}`;
+      const hasCoords = r.location_1?.coordinates;
+      const coords = hasCoords 
+        ? { lat: r.location_1.coordinates[1], lng: r.location_1.coordinates[0] }
+        : approximateCoords('San Antonio', id);
       return {
         id, city: 'San Antonio',
-        callType: r.Category || r.CATEGORY || r.Problem || 'Unknown',
-        description: r.Category || r.CATEGORY || '',
-        location: r.Address || r.XBLK || 'San Antonio, TX',
-        timestamp: r.OPENEDDATETIME || r.openeddatetime || new Date().toISOString(),
-        status: r.Disposition || 'Active',
-        priority: r.Priority || '3',
-        severity: mapCallSeverity(r.Category || r.CATEGORY || '', r.Priority),
+        callType: r.ucr_category || r.category || r.offense_description || 'Unknown',
+        description: r.offense_description || r.ucr_category || '',
+        location: r.block_address || r.address || 'San Antonio, TX',
+        timestamp: r.report_date || r.date_of_occurrence || new Date().toISOString(),
+        status: 'Reported', priority: '3',
+        severity: mapCallSeverity(r.ucr_category || r.category || r.offense_description || ''),
         source: 'SAPD',
         lat: coords.lat, lng: coords.lng,
       };
@@ -206,30 +213,24 @@ async function fetchSanAntonio(): Promise<DispatchCall[]> {
   } catch (err) { console.error('San Antonio fetch error:', err); return []; }
 }
 
-async function fetchSanAntonioAlternate(): Promise<DispatchCall[]> {
+async function fetchSanAntonioFallback(): Promise<DispatchCall[]> {
   try {
-    const url = 'https://data.sanantonio.gov/dataset/73cb90a0-9e22-40da-87ca-a0cae7bcb592/resource/284df1f5-f7a3-40ae-bdbf-1c8b97e84e66/download/sapd-calls-for-service.csv';
-    const res = await fetch(url, { headers: { 'Accept': 'text/csv' } });
+    // Try alternate SAPD feed
+    const url = 'https://data.sanantonio.gov/resource/4yhy-2cjb.json?$order=date%20DESC&$limit=25';
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
     if (!res.ok) return [];
-    const text = await res.text();
-    const lines = text.trim().split('\n');
-    if (lines.length < 2) return [];
-    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-    const recentLines = lines.slice(-30);
-    return recentLines.map((line, i) => {
-      const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
-      const row: Record<string, string> = {};
-      headers.forEach((h, idx) => { row[h] = values[idx] || ''; });
-      const id = `SAT-${row['INCIDENTID'] || row['IncidentID'] || i}`;
+    const data = await res.json();
+    return data.map((r: any) => {
+      const id = `SAT-${r._id || Math.random().toString(36).substr(2, 8)}`;
       const coords = approximateCoords('San Antonio', id);
       return {
         id, city: 'San Antonio',
-        callType: row['Category'] || row['CATEGORY'] || 'Unknown',
-        description: row['Category'] || '',
-        location: row['Address'] || row['XBLK'] || 'San Antonio, TX',
-        timestamp: row['OPENEDDATETIME'] || row['OpenedDateTime'] || new Date().toISOString(),
-        status: 'Reported', priority: row['Priority'] || '3',
-        severity: mapCallSeverity(row['Category'] || '', row['Priority']),
+        callType: r.category || r.offense || 'Unknown',
+        description: r.category || '',
+        location: r.address || r.location || 'San Antonio, TX',
+        timestamp: r.date || new Date().toISOString(),
+        status: 'Reported', priority: '3',
+        severity: mapCallSeverity(r.category || r.offense || ''),
         source: 'SAPD',
         lat: coords.lat, lng: coords.lng,
       };
@@ -241,9 +242,7 @@ async function fetchSanAntonioAlternate(): Promise<DispatchCall[]> {
 function deduplicateCalls(calls: DispatchCall[]): DispatchCall[] {
   const seen = new Map<string, DispatchCall>();
   for (const call of calls) {
-    if (!seen.has(call.id)) {
-      seen.set(call.id, call);
-    }
+    if (!seen.has(call.id)) seen.set(call.id, call);
   }
   return Array.from(seen.values());
 }
@@ -268,6 +267,9 @@ serve(async (req) => {
       if (dallas.status === 'fulfilled') calls.push(...dallas.value);
       if (houston.status === 'fulfilled') calls.push(...houston.value);
       if (sanAntonio.status === 'fulfilled') calls.push(...sanAntonio.value);
+      
+      // Log results for debugging
+      console.log(`Fetched: AUS=${austin.status === 'fulfilled' ? austin.value.length : 'ERR'} DAL=${dallas.status === 'fulfilled' ? dallas.value.length : 'ERR'} HOU=${houston.status === 'fulfilled' ? houston.value.length : 'ERR'} SAT=${sanAntonio.status === 'fulfilled' ? sanAntonio.value.length : 'ERR'}`);
     } else {
       switch (city.toLowerCase()) {
         case 'austin': calls = await fetchAustin(); break;
@@ -277,7 +279,6 @@ serve(async (req) => {
       }
     }
 
-    // Deduplicate and sort
     calls = deduplicateCalls(calls);
     calls.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     calls = calls.slice(0, limit);
