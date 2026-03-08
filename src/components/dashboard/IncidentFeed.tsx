@@ -1,5 +1,6 @@
 import { mockIncidents, type Incident, type IncidentType, type Severity } from '@/data/mockData';
-import { AlertTriangle, Car, Flame, Heart, Shield, CloudLightning, Biohazard, Search, MapPin } from 'lucide-react';
+import { useDispatchData, type DispatchCall } from '@/hooks/useDispatchData';
+import { AlertTriangle, Car, Flame, Heart, Shield, CloudLightning, Biohazard, Search, MapPin, Radio } from 'lucide-react';
 import { useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -24,6 +25,7 @@ const statusLabels: Record<string, string> = {
   active: 'ACTIVE',
   responding: 'RESPONDING',
   resolved: 'RESOLVED',
+  reported: 'REPORTED',
 };
 
 const TEXAS_CITIES = [
@@ -47,10 +49,38 @@ const formatTime = (ts: string) => {
   const diff = Math.floor((now.getTime() - d.getTime()) / 60000);
   if (diff < 1) return 'JUST NOW';
   if (diff < 60) return `${diff}m AGO`;
-  return `${Math.floor(diff / 60)}h AGO`;
+  if (diff < 1440) return `${Math.floor(diff / 60)}h AGO`;
+  return `${Math.floor(diff / 1440)}d AGO`;
 };
 
-const IncidentCard = ({ incident, onClick, isSelected }: { incident: Incident; onClick: () => void; isSelected: boolean }) => {
+function mapCallTypeToIncidentType(callType: string): IncidentType {
+  const ct = callType.toLowerCase();
+  if (ct.includes('shoot') || ct.includes('robbery') || ct.includes('assault') || ct.includes('burglary') || ct.includes('theft') || ct.includes('weapon') || ct.includes('homicide') || ct.includes('suspicious')) return 'crime';
+  if (ct.includes('traffic') || ct.includes('accident') || ct.includes('crash') || ct.includes('vehicle') || ct.includes('collision') || ct.includes('hit and run')) return 'traffic';
+  if (ct.includes('fire') || ct.includes('smoke') || ct.includes('arson')) return 'fire';
+  if (ct.includes('medical') || ct.includes('ems') || ct.includes('cardiac') || ct.includes('injury') || ct.includes('unconscious')) return 'medical';
+  if (ct.includes('weather') || ct.includes('flood') || ct.includes('tornado')) return 'weather';
+  if (ct.includes('hazmat') || ct.includes('chemical') || ct.includes('spill')) return 'hazard';
+  return 'alert';
+}
+
+function dispatchToIncident(call: DispatchCall): Incident {
+  return {
+    id: call.id,
+    type: mapCallTypeToIncidentType(call.callType),
+    title: call.callType,
+    description: call.description,
+    location: call.location,
+    lat: call.lat || 31.0,
+    lng: call.lng || -99.5,
+    timestamp: call.timestamp,
+    severity: call.severity,
+    source: call.source,
+    status: call.status.toLowerCase().includes('scene') ? 'responding' : 'active',
+  };
+}
+
+const IncidentCard = ({ incident, onClick, isSelected, isLive }: { incident: Incident; onClick: () => void; isSelected: boolean; isLive?: boolean }) => {
   const Icon = typeIcons[incident.type];
   return (
     <button
@@ -73,6 +103,12 @@ const IncidentCard = ({ incident, onClick, isSelected }: { incident: Incident; o
               incident.severity === 'critical' ? 'animate-pulse' : ''
             }`} />
             <span className="text-[10px] font-display text-muted-foreground">{incident.id}</span>
+            {isLive && (
+              <span className="flex items-center gap-0.5 text-[8px] font-display text-destructive">
+                <Radio className="h-2 w-2 animate-pulse" />
+                LIVE
+              </span>
+            )}
             <span className="text-[10px] font-display text-muted-foreground ml-auto">{formatTime(incident.timestamp)}</span>
           </div>
           <p className="text-xs font-medium text-foreground truncate leading-snug">{incident.title}</p>
@@ -86,7 +122,7 @@ const IncidentCard = ({ incident, onClick, isSelected }: { incident: Incident; o
               incident.status === 'responding' ? 'bg-warning/15 text-warning' :
               'bg-success/15 text-success'
             }`}>
-              {statusLabels[incident.status]}
+              {statusLabels[incident.status] || incident.status.toUpperCase()}
             </span>
             <span className="text-[9px] text-muted-foreground font-display">{incident.source}</span>
           </div>
@@ -106,9 +142,25 @@ interface IncidentFeedProps {
 const IncidentFeed = ({ onSelectIncident, selectedIncident, cityFilter, onCityFilterChange }: IncidentFeedProps) => {
   const [typeFilter, setTypeFilter] = useState<IncidentType | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [dataSource, setDataSource] = useState<'all' | 'live' | 'mock'>('all');
+
+  const { data: dispatchData, isLoading: dispatchLoading } = useDispatchData(
+    cityFilter === 'all' ? 'all' : cityFilter.toLowerCase()
+  );
+
+  // Convert dispatch calls to Incident format
+  const liveIncidents: Incident[] = (dispatchData?.calls || []).map(dispatchToIncident);
+
+  // Merge data sources
+  const allIncidents = dataSource === 'live' ? liveIncidents :
+                       dataSource === 'mock' ? mockIncidents :
+                       [...liveIncidents, ...mockIncidents];
+
+  // Track which IDs are live
+  const liveIds = new Set(liveIncidents.map(i => i.id));
 
   const city = cityFilter || 'all';
-  const filtered = mockIncidents.filter(i => {
+  const filtered = allIncidents.filter(i => {
     const matchesType = typeFilter === 'all' || i.type === typeFilter;
     const matchesCity = city === 'all' || i.location.toLowerCase().includes(city.toLowerCase());
     const matchesSearch = searchQuery === '' || 
@@ -117,6 +169,9 @@ const IncidentFeed = ({ onSelectIncident, selectedIncident, cityFilter, onCityFi
       i.id.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesType && matchesCity && matchesSearch;
   });
+
+  // Sort by timestamp descending
+  filtered.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
   const types: (IncidentType | 'all')[] = ['all', 'crime', 'traffic', 'fire', 'medical', 'weather', 'hazard'];
 
@@ -127,9 +182,37 @@ const IncidentFeed = ({ onSelectIncident, selectedIncident, cityFilter, onCityFi
           <h2 className="font-display text-xs font-semibold tracking-widest text-primary">
             INCIDENT FEED
           </h2>
-          <span className="text-[10px] font-display text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
-            {filtered.length}
-          </span>
+          <div className="flex items-center gap-2">
+            {dispatchLoading && (
+              <span className="text-[8px] font-display text-warning animate-pulse">SYNCING...</span>
+            )}
+            {dispatchData && (
+              <span className="flex items-center gap-1 text-[8px] font-display text-success">
+                <Radio className="h-2 w-2" />
+                {dispatchData.total} LIVE
+              </span>
+            )}
+            <span className="text-[10px] font-display text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+              {filtered.length}
+            </span>
+          </div>
+        </div>
+
+        {/* Data source toggle */}
+        <div className="flex gap-1 mb-2.5">
+          {(['all', 'live', 'mock'] as const).map(src => (
+            <button
+              key={src}
+              onClick={() => setDataSource(src)}
+              className={`text-[9px] font-display px-2 py-1 rounded-full transition-all ${
+                dataSource === src
+                  ? 'bg-primary/20 text-primary ring-1 ring-primary/30'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+              }`}
+            >
+              {src === 'all' ? 'ALL' : src === 'live' ? '🔴 LIVE 911' : 'SIMULATED'}
+            </button>
+          ))}
         </div>
 
         {/* Search */}
@@ -157,6 +240,19 @@ const IncidentFeed = ({ onSelectIncident, selectedIncident, cityFilter, onCityFi
             ))}
           </select>
         </div>
+
+        {/* City breakdown for live data */}
+        {dispatchData && dataSource !== 'mock' && (
+          <div className="flex gap-2 mb-2.5 flex-wrap">
+            {Object.entries(dispatchData.cities).map(([c, count]) => (
+              count > 0 && (
+                <span key={c} className="text-[8px] font-display text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
+                  {c.toUpperCase()}: {count}
+                </span>
+              )
+            ))}
+          </div>
+        )}
 
         {/* Type Filters */}
         <div className="flex gap-1 flex-wrap">
@@ -187,6 +283,7 @@ const IncidentFeed = ({ onSelectIncident, selectedIncident, cityFilter, onCityFi
               incident={incident}
               isSelected={selectedIncident?.id === incident.id}
               onClick={() => onSelectIncident(incident)}
+              isLive={liveIds.has(incident.id)}
             />
           ))
         )}
