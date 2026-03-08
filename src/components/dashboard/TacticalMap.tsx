@@ -22,7 +22,7 @@ const severityRadius: Record<Severity, number> = {
 function FlyToIncident({ incident }: { incident: Incident | null }) {
   const map = useMap();
   useEffect(() => {
-    if (incident && incident.lat && incident.lng) {
+    if (incident && typeof incident.lat === 'number' && typeof incident.lng === 'number' && isFinite(incident.lat) && isFinite(incident.lng)) {
       map.flyTo([incident.lat, incident.lng], 12, { duration: 1 });
     }
   }, [incident, map]);
