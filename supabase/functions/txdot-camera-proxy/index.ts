@@ -70,9 +70,9 @@ async function fetchCameraSnapshot(cameraName: string, district: string): Promis
       
       if (response.ok) {
         const contentType = response.headers.get('content-type') || '';
-        if (contentType.includes('image')) {
-          return response;
-        }
+        console.log(`${url} returned 200 with content-type: ${contentType}`);
+        // Accept any successful response - TxDOT may return images with various content types
+        return response;
       }
       console.log(`${url} returned ${response.status}`);
       // Consume the body to prevent leaks
