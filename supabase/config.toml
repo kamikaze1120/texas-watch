@@ -1,1 +1,7 @@
 project_id = "uytgucqjkfyebmbxjtlj"
+
+[functions.txdot-camera-proxy]
+verify_jwt = false
+
+[functions.live-data]
+verify_jwt = false
