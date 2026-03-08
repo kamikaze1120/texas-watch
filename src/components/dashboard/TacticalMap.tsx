@@ -1,80 +1,125 @@
 import { mockIncidents, type Incident, type Severity } from '@/data/mockData';
+import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
+import { useEffect } from 'react';
+import 'leaflet/dist/leaflet.css';
 
-const severityStyles: Record<Severity, string> = {
-  critical: 'bg-destructive border-destructive/70',
-  high: 'bg-warning border-warning/70',
-  medium: 'bg-primary border-primary/70',
-  low: 'bg-muted-foreground border-muted-foreground/70',
+const severityColors: Record<Severity, string> = {
+  critical: '#ef4444',
+  high: '#f59e0b',
+  medium: '#0ea5e9',
+  low: '#6b7280',
 };
 
-const TEXAS_BOUNDS = {
-  minLat: 25.8,
-  maxLat: 36.5,
-  minLng: -106.7,
-  maxLng: -93.5,
+const severityRadius: Record<Severity, number> = {
+  critical: 10,
+  high: 8,
+  medium: 6,
+  low: 5,
 };
 
-const getPosition = (lat: number, lng: number) => {
-  const x = ((lng - TEXAS_BOUNDS.minLng) / (TEXAS_BOUNDS.maxLng - TEXAS_BOUNDS.minLng)) * 100;
-  const y = 100 - ((lat - TEXAS_BOUNDS.minLat) / (TEXAS_BOUNDS.maxLat - TEXAS_BOUNDS.minLat)) * 100;
-  return {
-    left: `${Math.min(98, Math.max(2, x))}%`,
-    top: `${Math.min(98, Math.max(2, y))}%`,
-  };
+const FlyToIncident = ({ incident }: { incident: Incident | null }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (incident) {
+      map.flyTo([incident.lat, incident.lng], 12, { duration: 1 });
+    }
+  }, [incident, map]);
+  return null;
 };
 
 interface TacticalMapProps {
   selectedIncident: Incident | null;
+  cityFilter: string;
 }
 
-const TacticalMap = ({ selectedIncident }: TacticalMapProps) => {
+const TacticalMap = ({ selectedIncident, cityFilter }: TacticalMapProps) => {
+  const incidents = cityFilter === 'all'
+    ? mockIncidents
+    : mockIncidents.filter(i => i.location.toLowerCase().includes(cityFilter.toLowerCase()));
+
   return (
-    <div className="relative w-full h-full tactical-grid overflow-hidden bg-background">
-      <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-secondary/30" />
+    <div className="relative w-full h-full">
+      <MapContainer
+        center={[31.0, -100.0]}
+        zoom={6}
+        className="w-full h-full z-0"
+        zoomControl={true}
+        attributionControl={true}
+      >
+        <TileLayer
+          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://carto.com">CARTO</a>'
+        />
 
-      {mockIncidents.map((incident) => {
-        const pos = getPosition(incident.lat, incident.lng);
-        const isSelected = selectedIncident?.id === incident.id;
-
-        return (
-          <div
+        {incidents.map((incident) => (
+          <CircleMarker
             key={incident.id}
-            className="absolute -translate-x-1/2 -translate-y-1/2"
-            style={pos}
-            title={`${incident.id}: ${incident.title}`}
+            center={[incident.lat, incident.lng]}
+            radius={severityRadius[incident.severity]}
+            pathOptions={{
+              color: severityColors[incident.severity],
+              fillColor: severityColors[incident.severity],
+              fillOpacity: 0.6,
+              weight: 2,
+              opacity: 0.9,
+            }}
           >
-            <div
-              className={`rounded-full border ${severityStyles[incident.severity]} ${isSelected ? 'h-4 w-4 animate-pulse-glow' : incident.severity === 'critical' ? 'h-3.5 w-3.5 animate-pulse-glow' : 'h-3 w-3'}`}
-            />
-          </div>
-        );
-      })}
+            <Popup>
+              <div className="min-w-[200px]">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span
+                    className="h-2 w-2 rounded-full"
+                    style={{ backgroundColor: severityColors[incident.severity] }}
+                  />
+                  <span className="font-display text-[10px] tracking-wider" style={{ color: severityColors[incident.severity] }}>
+                    {incident.severity.toUpperCase()}
+                  </span>
+                  <span className="text-[10px] font-display opacity-60 ml-auto">{incident.id}</span>
+                </div>
+                <p className="font-semibold text-xs mb-1">{incident.title}</p>
+                <p className="text-[11px] opacity-70 mb-1.5">{incident.location}</p>
+                <p className="text-[11px] opacity-80">{incident.description}</p>
+                <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border/30">
+                  <span className="text-[9px] font-display uppercase opacity-50">{incident.source}</span>
+                  <span className={`text-[9px] font-display px-1.5 py-0.5 rounded-full ${
+                    incident.status === 'active' ? 'bg-destructive/20 text-destructive' :
+                    incident.status === 'responding' ? 'bg-warning/20 text-warning' :
+                    'bg-success/20 text-success'
+                  }`}>
+                    {incident.status.toUpperCase()}
+                  </span>
+                </div>
+              </div>
+            </Popup>
+          </CircleMarker>
+        ))}
 
-      {selectedIncident && (
-        <div className="absolute top-4 right-4 z-20 max-w-xs bg-card/95 border border-border rounded p-3">
-          <p className="text-[10px] font-display text-primary mb-1">SELECTED INCIDENT</p>
-          <p className="text-xs font-semibold text-foreground">
-            {selectedIncident.id}: {selectedIncident.title}
-          </p>
-          <p className="text-[11px] text-muted-foreground mt-1">{selectedIncident.location}</p>
-          <p className="text-[11px] text-foreground/90 mt-1">{selectedIncident.description}</p>
-        </div>
-      )}
+        <FlyToIncident incident={selectedIncident} />
+      </MapContainer>
 
-      <div className="absolute bottom-4 left-4 z-20 bg-card/90 backdrop-blur-sm border border-border rounded p-3">
-        <p className="text-[10px] font-display text-muted-foreground mb-2">THREAT LEVEL</p>
+      {/* Map Legend */}
+      <div className="absolute bottom-4 left-4 z-[1000] glass-panel rounded-lg p-3">
+        <p className="text-[9px] font-display text-muted-foreground mb-2 tracking-widest">THREAT LEVEL</p>
         <div className="flex flex-col gap-1.5">
           {(['critical', 'high', 'medium', 'low'] as Severity[]).map((s) => (
             <div key={s} className="flex items-center gap-2">
-              <span className={`h-2.5 w-2.5 rounded-full ${severityStyles[s]}`} />
+              <span
+                className="h-2.5 w-2.5 rounded-full"
+                style={{ backgroundColor: severityColors[s] }}
+              />
               <span className="text-[10px] font-display text-foreground uppercase">{s}</span>
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Incident count overlay */}
+      <div className="absolute top-4 right-4 z-[1000] glass-panel rounded-lg px-3 py-2">
+        <p className="text-[9px] font-display text-muted-foreground tracking-widest">ACTIVE MARKERS</p>
+        <p className="text-lg font-display font-bold text-primary">{incidents.length}</p>
       </div>
     </div>
   );
 };
 
 export default TacticalMap;
-
