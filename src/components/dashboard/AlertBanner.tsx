@@ -1,4 +1,4 @@
-import { mockAlerts, type Alert } from '@/data/mockData';
+import { mockAlerts } from '@/data/mockData';
 import { AlertTriangle, Baby, Shield, User, CloudLightning } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -35,10 +35,10 @@ const AlertBanner = () => {
   const Icon = alertIcons[alert.type];
 
   return (
-    <div className="h-10 bg-card border-t border-border flex items-center px-4 gap-3 shrink-0">
+    <div className="h-10 bg-card border-t border-border flex items-center px-5 gap-3 shrink-0">
       <div className="flex items-center gap-2">
-        <AlertTriangle className="h-3.5 w-3.5 text-warning animate-pulse-glow" />
-        <span className="text-[10px] font-display text-warning tracking-wider">
+        <AlertTriangle className="h-3.5 w-3.5 text-warning animate-pulse" />
+        <span className="text-[10px] font-display text-warning tracking-widest">
           ALERTS ({activeAlerts.length})
         </span>
       </div>
@@ -48,7 +48,7 @@ const AlertBanner = () => {
         <span className={`text-[10px] font-display uppercase shrink-0 ${alertStyles[alert.type]}`}>
           {alert.type}
         </span>
-        <p className="text-xs text-foreground truncate">{alert.title}</p>
+        <p className="text-xs text-foreground truncate font-medium">{alert.title}</p>
         <p className="text-[10px] text-muted-foreground truncate hidden lg:block">— {alert.description}</p>
       </div>
       <div className="flex gap-1">
@@ -56,7 +56,9 @@ const AlertBanner = () => {
           <button
             key={i}
             onClick={() => setCurrentIndex(i)}
-            className={`h-1.5 w-1.5 rounded-full transition-colors ${i === currentIndex ? 'bg-warning' : 'bg-muted-foreground/30'}`}
+            className={`h-1.5 rounded-full transition-all ${
+              i === currentIndex ? 'bg-warning w-4' : 'bg-muted-foreground/30 w-1.5'
+            }`}
           />
         ))}
       </div>
