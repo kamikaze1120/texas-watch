@@ -84,7 +84,7 @@ const TacticalMap = ({ selectedIncident, cityFilter }: TacticalMapProps) => {
     const lat = toFiniteCoord(call.lat);
     const lng = toFiniteCoord(call.lng);
 
-    if (lat === null || lng === null) return [];
+    if (!isValidLatLng(lat, lng)) return [];
 
     return [{ ...call, lat, lng }];
   });
