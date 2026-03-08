@@ -1,27 +1,33 @@
+import { useEffect, useRef, useState } from 'react';
+import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
 import { mockIncidents, type Incident, type Severity } from '@/data/mockData';
+import { useWeatherAlerts } from '@/hooks/useLiveData';
+import 'leaflet/dist/leaflet.css';
 
 const severityColors: Record<Severity, string> = {
-  critical: 'hsl(0 72% 51%)',
-  high: 'hsl(38 92% 50%)',
-  medium: 'hsl(199 89% 48%)',
-  low: 'hsl(215 12% 48%)',
+  critical: '#ef4444',
+  high: '#f59e0b',
+  medium: '#0ea5e9',
+  low: '#6b7280',
 };
 
-const TEXAS_BOUNDS = {
-  minLat: 25.8,
-  maxLat: 36.5,
-  minLng: -106.7,
-  maxLng: -93.5,
+const severityRadius: Record<Severity, number> = {
+  critical: 12,
+  high: 9,
+  medium: 7,
+  low: 5,
 };
 
-const getPosition = (lat: number, lng: number) => {
-  const x = ((lng - TEXAS_BOUNDS.minLng) / (TEXAS_BOUNDS.maxLng - TEXAS_BOUNDS.minLng)) * 100;
-  const y = 100 - ((lat - TEXAS_BOUNDS.minLat) / (TEXAS_BOUNDS.maxLat - TEXAS_BOUNDS.minLat)) * 100;
-  return {
-    left: `${Math.min(96, Math.max(4, x))}%`,
-    top: `${Math.min(96, Math.max(4, y))}%`,
-  };
-};
+// Component to fly to selected incident
+function FlyToIncident({ incident }: { incident: Incident | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (incident) {
+      map.flyTo([incident.lat, incident.lng], 11, { duration: 1 });
+    }
+  }, [incident, map]);
+  return null;
+}
 
 interface TacticalMapProps {
   selectedIncident: Incident | null;
@@ -32,72 +38,82 @@ const TacticalMap = ({ selectedIncident, cityFilter }: TacticalMapProps) => {
   const city = cityFilter || 'all';
   const incidents = city === 'all'
     ? mockIncidents
-    : mockIncidents.filter(i => i.location.toLowerCase().includes(city.toLowerCase()));
+    : mockIncidents.filter(i => i.location?.toLowerCase().includes(city.toLowerCase()));
+
+  const { data: weatherAlerts } = useWeatherAlerts();
+
+  // Texas center
+  const center: [number, number] = [31.0, -99.5];
 
   return (
-    <div className="relative w-full h-full bg-background tactical-grid overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-secondary/20" />
+    <div className="relative w-full h-full">
+      <MapContainer
+        center={center}
+        zoom={6}
+        className="w-full h-full"
+        zoomControl={true}
+        attributionControl={true}
+      >
+        <TileLayer
+          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>'
+        />
 
-      {incidents.map((incident) => {
-        const pos = getPosition(incident.lat, incident.lng);
-        const isSelected = selectedIncident?.id === incident.id;
-        const size = incident.severity === 'critical' ? 14 : incident.severity === 'high' ? 11 : 9;
+        <FlyToIncident incident={selectedIncident} />
 
-        return (
-          <div
-            key={incident.id}
-            className="absolute -translate-x-1/2 -translate-y-1/2 group cursor-pointer"
-            style={pos}
-            title={`${incident.id}: ${incident.title}`}
-          >
-            {/* Pulse ring for critical/selected */}
-            {(incident.severity === 'critical' || isSelected) && (
-              <div
-                className="absolute inset-0 rounded-full animate-ping opacity-30"
-                style={{
-                  backgroundColor: severityColors[incident.severity],
-                  width: size + 8,
-                  height: size + 8,
-                  top: -4,
-                  left: -4,
-                }}
-              />
-            )}
-            <div
-              className={`rounded-full border-2 transition-transform ${isSelected ? 'scale-150' : 'hover:scale-125'}`}
-              style={{
-                width: size,
-                height: size,
-                backgroundColor: severityColors[incident.severity],
-                borderColor: severityColors[incident.severity],
-                boxShadow: `0 0 ${isSelected ? 16 : 8}px ${severityColors[incident.severity]}`,
+        {incidents.map((incident) => {
+          const isSelected = selectedIncident?.id === incident.id;
+          return (
+            <CircleMarker
+              key={incident.id}
+              center={[incident.lat, incident.lng]}
+              radius={isSelected ? severityRadius[incident.severity] * 1.5 : severityRadius[incident.severity]}
+              pathOptions={{
+                color: severityColors[incident.severity],
+                fillColor: severityColors[incident.severity],
+                fillOpacity: isSelected ? 0.9 : 0.7,
+                weight: isSelected ? 3 : 1.5,
               }}
-            />
-            {/* Tooltip on hover */}
-            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block z-30 pointer-events-none">
-              <div className="glass-panel rounded-lg px-2.5 py-1.5 whitespace-nowrap">
-                <p className="text-[10px] font-display text-foreground font-medium">{incident.title}</p>
-                <p className="text-[9px] text-muted-foreground">{incident.location}</p>
-              </div>
+            >
+              <Popup>
+                <div className="font-body text-xs">
+                  <p className="font-bold text-sm">{incident.id}: {incident.title}</p>
+                  <p className="text-gray-600 mt-1">{incident.location}</p>
+                  <p className="mt-1">{incident.description}</p>
+                  <p className="mt-1 text-gray-500">Source: {incident.source}</p>
+                  <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                    incident.severity === 'critical' ? 'bg-red-100 text-red-700' :
+                    incident.severity === 'high' ? 'bg-amber-100 text-amber-700' :
+                    'bg-blue-100 text-blue-700'
+                  }`}>
+                    {incident.severity}
+                  </span>
+                </div>
+              </Popup>
+            </CircleMarker>
+          );
+        })}
+      </MapContainer>
+
+      {/* Live Weather Overlay */}
+      {weatherAlerts && weatherAlerts.length > 0 && (
+        <div className="absolute top-4 right-4 z-[1000] max-w-xs">
+          <div className="glass-panel rounded-lg p-3">
+            <p className="text-[9px] font-display text-warning mb-2 tracking-widest">⚠ LIVE WEATHER ALERTS</p>
+            <div className="space-y-1.5 max-h-40 overflow-y-auto">
+              {weatherAlerts.slice(0, 5).map((alert) => (
+                <div key={alert.id} className="border-l-2 border-warning pl-2">
+                  <p className="text-[10px] font-medium text-foreground leading-tight">{alert.event}</p>
+                  <p className="text-[9px] text-muted-foreground truncate">{alert.areas}</p>
+                </div>
+              ))}
             </div>
           </div>
-        );
-      })}
-
-      {/* Selected incident detail */}
-      {selectedIncident && (
-        <div className="absolute top-4 right-4 z-20 max-w-xs glass-panel rounded-lg p-3">
-          <p className="text-[9px] font-display text-primary mb-1 tracking-widest">SELECTED INCIDENT</p>
-          <p className="text-xs font-semibold text-foreground">
-            {selectedIncident.id}: {selectedIncident.title}
-          </p>
-          <p className="text-[10px] text-muted-foreground mt-1">{selectedIncident.location}</p>
-          <p className="text-[10px] text-foreground/80 mt-1">{selectedIncident.description}</p>
         </div>
       )}
 
       {/* Legend */}
-      <div className="absolute bottom-4 left-4 z-20 glass-panel rounded-lg p-3">
+      <div className="absolute bottom-4 left-4 z-[1000] glass-panel rounded-lg p-3">
         <p className="text-[9px] font-display text-muted-foreground mb-2 tracking-widest">THREAT LEVEL</p>
         <div className="flex flex-col gap-1.5">
           {(['critical', 'high', 'medium', 'low'] as Severity[]).map((s) => (
@@ -110,7 +126,7 @@ const TacticalMap = ({ selectedIncident, cityFilter }: TacticalMapProps) => {
       </div>
 
       {/* Count */}
-      <div className="absolute top-4 left-4 z-20 glass-panel rounded-lg px-3 py-2">
+      <div className="absolute top-4 left-4 z-[1000] glass-panel rounded-lg px-3 py-2">
         <p className="text-[9px] font-display text-muted-foreground tracking-widest">ACTIVE MARKERS</p>
         <p className="text-lg font-display font-bold text-primary">{incidents.length}</p>
       </div>
