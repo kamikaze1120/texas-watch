@@ -27,26 +27,26 @@ const StatsBar = () => {
   ];
 
   return (
-    <div className="h-10 bg-card/30 border-b border-border/50 flex items-center px-4 gap-4 overflow-x-auto shrink-0">
+    <div className="h-11 bg-card/30 border-b border-border/50 flex items-center px-4 gap-5 overflow-x-auto shrink-0">
       {stats.map((stat, i) => {
         const Icon = stat.icon;
         return (
           <div key={i} className="flex items-center gap-1.5 shrink-0">
-            <Icon className={`h-3 w-3 ${stat.color}`} />
-            <span className={`text-[11px] font-display font-bold tabular-nums ${stat.color}`}>{stat.value}</span>
-            <span className="text-[7px] font-display text-muted-foreground tracking-wider">{stat.label}</span>
+            <Icon className={`h-3.5 w-3.5 ${stat.color}`} />
+            <span className={`text-sm font-display font-bold tabular-nums ${stat.color}`}>{stat.value}</span>
+            <span className="text-[10px] font-body text-muted-foreground tracking-wider">{stat.label}</span>
           </div>
         );
       })}
 
       <div className="h-4 w-px bg-border/30 hidden lg:block" />
 
-      <div className="hidden lg:flex items-center gap-3">
-        <MapPin className="h-2.5 w-2.5 text-muted-foreground" />
+      <div className="hidden lg:flex items-center gap-4">
+        <MapPin className="h-3 w-3 text-muted-foreground" />
         {cityStats.map(c => (
           <div key={c.label} className="flex items-center gap-1">
-            <span className="text-[8px] font-display text-muted-foreground tracking-wider">{c.label}</span>
-            <span className="text-[9px] font-display text-foreground font-bold tabular-nums">{c.value}</span>
+            <span className="text-[10px] font-body text-muted-foreground tracking-wider">{c.label}</span>
+            <span className="text-xs font-display text-foreground font-bold tabular-nums">{c.value}</span>
           </div>
         ))}
       </div>

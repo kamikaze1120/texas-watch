@@ -17,7 +17,7 @@ const typeIcons: Record<IncidentType, React.ElementType> = {
 const severityColors: Record<Severity, string> = {
   critical: 'bg-destructive',
   high: 'bg-warning',
-  medium: 'bg-primary',
+  medium: 'bg-accent',
   low: 'bg-muted-foreground',
 };
 
@@ -66,34 +66,32 @@ const IncidentCard = ({ incident, onClick, isSelected }: { incident: Incident; o
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left px-3 py-2.5 border-b border-border/30 hover:bg-secondary/40 transition-all group ${
+      className={`w-full text-left px-3 py-3 border-b border-border/30 hover:bg-secondary/50 transition-all ${
         isSelected ? 'bg-primary/8 border-l-2 border-l-primary' : 'border-l-2 border-l-transparent'
       }`}
     >
-      <div className="flex items-start gap-2">
-        <div className={`p-1 rounded ${
+      <div className="flex items-start gap-2.5">
+        <div className={`p-1.5 rounded ${
           incident.severity === 'critical' ? 'bg-destructive/15 text-destructive' :
           incident.severity === 'high' ? 'bg-warning/15 text-warning' :
-          'bg-primary/10 text-primary'
+          'bg-accent/20 text-accent-foreground'
         }`}>
-          <Icon className="h-3 w-3" />
+          <Icon className="h-3.5 w-3.5" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-0.5">
-            <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${severityColors[incident.severity]} ${
+            <span className={`h-2 w-2 rounded-full shrink-0 ${severityColors[incident.severity]} ${
               incident.severity === 'critical' ? 'animate-pulse' : ''
             }`} />
-            <span className="text-[8px] font-display text-muted-foreground/70 tracking-wider truncate">{incident.id.slice(0, 12)}</span>
-            <span className="text-[8px] font-display text-muted-foreground/50 ml-auto tabular-nums shrink-0">{formatTime(incident.timestamp)}</span>
+            <span className="text-[10px] font-display text-muted-foreground/70 tracking-wider truncate">{incident.id.slice(0, 12)}</span>
+            <span className="text-[10px] font-display text-muted-foreground/50 ml-auto tabular-nums shrink-0">{formatTime(incident.timestamp)}</span>
           </div>
-          <p className="text-[11px] font-medium text-foreground truncate leading-tight">{incident.title}</p>
+          <p className="text-sm font-semibold text-foreground truncate leading-tight">{incident.title}</p>
           <div className="flex items-center gap-1 mt-0.5">
-            <MapPin className="h-2 w-2 text-muted-foreground/50 shrink-0" />
-            <p className="text-[9px] text-muted-foreground/70 truncate">{incident.location}</p>
+            <MapPin className="h-2.5 w-2.5 text-muted-foreground/50 shrink-0" />
+            <p className="text-xs text-muted-foreground/70 truncate">{incident.location}</p>
           </div>
-          <div className="flex items-center gap-1.5 mt-1.5">
-            <span className="text-[7px] font-display text-muted-foreground/60 tracking-wider">{incident.source}</span>
-          </div>
+          <span className="text-[9px] font-display text-muted-foreground/50 tracking-wider mt-1 block">{incident.source}</span>
         </div>
       </div>
     </button>
@@ -111,14 +109,12 @@ const IncidentFeed = ({ onSelectIncident, selectedIncident, cityFilter, onCityFi
   const [typeFilter, setTypeFilter] = useState<IncidentType | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // The API already filters by city server-side, so we pass the city filter directly
   const { data: dispatchData, isLoading } = useDispatchData(
     cityFilter === 'all' ? 'all' : cityFilter.toLowerCase()
   );
 
   const liveIncidents: Incident[] = (dispatchData?.calls || []).map(dispatchToIncident);
 
-  // Only filter by type and search — city filtering is done server-side
   const filtered = liveIncidents.filter(i => {
     const matchesType = typeFilter === 'all' || i.type === typeFilter;
     const matchesSearch = searchQuery === '' ||
@@ -134,49 +130,49 @@ const IncidentFeed = ({ onSelectIncident, selectedIncident, cityFilter, onCityFi
   return (
     <div className="flex flex-col h-full bg-card/50">
       <div className="p-3 border-b border-border/50">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-1.5">
-            <Radio className="h-3 w-3 text-destructive animate-pulse" />
-            <h2 className="font-display text-[10px] font-bold tracking-[0.15em] text-foreground">
+        <div className="flex items-center justify-between mb-2.5">
+          <div className="flex items-center gap-2">
+            <Radio className="h-3.5 w-3.5 text-destructive animate-pulse" />
+            <h2 className="font-display text-xs font-bold tracking-[0.12em] text-foreground">
               LIVE DISPATCH
             </h2>
           </div>
           <div className="flex items-center gap-2">
             {isLoading && (
-              <span className="text-[7px] font-display text-primary animate-pulse tracking-wider">SYNCING</span>
+              <span className="text-[9px] font-display text-primary animate-pulse tracking-wider">SYNCING</span>
             )}
-            <span className="text-[9px] font-display text-muted-foreground bg-secondary/50 px-1.5 py-0.5 rounded tabular-nums">
+            <span className="text-xs font-display text-muted-foreground bg-secondary/50 px-2 py-0.5 rounded tabular-nums">
               {filtered.length}
             </span>
           </div>
         </div>
 
         <div className="relative mb-2">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
           <input
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search..."
-            className="w-full bg-secondary/50 border border-border/50 rounded px-7 py-1.5 text-[10px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/30 font-body"
+            placeholder="Search incidents..."
+            className="w-full bg-secondary/50 border border-border/50 rounded-md px-8 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/30 font-body"
           />
         </div>
 
         <select
           value={cityFilter}
           onChange={e => onCityFilterChange(e.target.value === 'All Cities' ? 'all' : e.target.value)}
-          className="w-full bg-secondary/50 border border-border/50 rounded px-2 py-1 text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30 font-display mb-2 appearance-none cursor-pointer"
+          className="w-full bg-secondary/50 border border-border/50 rounded-md px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30 font-display mb-2 appearance-none cursor-pointer"
         >
           {TEXAS_CITIES.map(c => (
             <option key={c} value={c === 'All Cities' ? 'all' : c}>{c}</option>
           ))}
         </select>
 
-        <div className="flex gap-0.5 flex-wrap">
+        <div className="flex gap-1 flex-wrap">
           {types.map(t => (
             <button
               key={t}
               onClick={() => setTypeFilter(t)}
-              className={`text-[7px] font-display px-1.5 py-0.5 rounded transition-all tracking-wider ${
+              className={`text-[10px] font-display px-2 py-1 rounded transition-all tracking-wider ${
                 typeFilter === t
                   ? 'bg-primary/15 text-primary'
                   : 'text-muted-foreground/60 hover:text-foreground hover:bg-secondary/30'
@@ -193,11 +189,11 @@ const IncidentFeed = ({ onSelectIncident, selectedIncident, cityFilter, onCityFi
           <div className="p-8 text-center">
             {isLoading ? (
               <div className="space-y-2">
-                <Radio className="h-5 w-5 text-primary animate-pulse mx-auto" />
-                <p className="text-[10px] text-muted-foreground font-display tracking-wider">CONNECTING TO DISPATCH...</p>
+                <Radio className="h-6 w-6 text-primary animate-pulse mx-auto" />
+                <p className="text-sm text-muted-foreground font-display tracking-wider">CONNECTING TO DISPATCH...</p>
               </div>
             ) : (
-              <p className="text-[10px] text-muted-foreground font-display tracking-wider">NO INCIDENTS</p>
+              <p className="text-sm text-muted-foreground font-display tracking-wider">NO INCIDENTS</p>
             )}
           </div>
         ) : (
