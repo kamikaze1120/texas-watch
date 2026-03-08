@@ -24,16 +24,49 @@ function toFiniteCoord(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function isValidLatLng(lat: number | null, lng: number | null): lat is number {
+  return lat !== null && lng !== null && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+}
+
 function FlyToIncident({ incident }: { incident: Incident | null }) {
   const map = useMap();
   useEffect(() => {
     const lat = toFiniteCoord(incident?.lat);
     const lng = toFiniteCoord(incident?.lng);
 
-    if (lat !== null && lng !== null) {
-      map.flyTo([lat, lng], 12, { duration: 1 });
+    if (isValidLatLng(lat, lng)) {
+      try {
+        map.flyTo([lat, lng], 12, { duration: 1 });
+      } catch {
+        // Ignore invalid runtime coordinates to avoid blank-screen crashes
+      }
     }
   }, [incident, map]);
+  return null;
+}
+
+const cityCenters: Record<string, { center: [number, number]; zoom: number }> = {
+  all: { center: [31.0, -99.5], zoom: 6 },
+  austin: { center: [30.2672, -97.7431], zoom: 11 },
+  dallas: { center: [32.7767, -96.797], zoom: 11 },
+  houston: { center: [29.7604, -95.3698], zoom: 11 },
+  'san antonio': { center: [29.4241, -98.4936], zoom: 11 },
+};
+
+function FlyToCity({ cityFilter }: { cityFilter: string }) {
+  const map = useMap();
+
+  useEffect(() => {
+    const normalized = cityFilter.toLowerCase();
+    const target = cityCenters[normalized] ?? cityCenters.all;
+
+    try {
+      map.flyTo(target.center, target.zoom, { duration: 0.8 });
+    } catch {
+      // Ignore invalid map move operations
+    }
+  }, [cityFilter, map]);
+
   return null;
 }
 
@@ -51,7 +84,7 @@ const TacticalMap = ({ selectedIncident, cityFilter }: TacticalMapProps) => {
     const lat = toFiniteCoord(call.lat);
     const lng = toFiniteCoord(call.lng);
 
-    if (lat === null || lng === null) return [];
+    if (!isValidLatLng(lat, lng)) return [];
 
     return [{ ...call, lat, lng }];
   });
@@ -72,6 +105,7 @@ const TacticalMap = ({ selectedIncident, cityFilter }: TacticalMapProps) => {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>'
         />
 
+        <FlyToCity cityFilter={cityFilter} />
         <FlyToIncident incident={selectedIncident} />
 
         {filteredCalls.map((call, idx) => {
