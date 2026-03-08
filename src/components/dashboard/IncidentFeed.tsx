@@ -45,7 +45,7 @@ function mapCallTypeToIncidentType(callType: string): IncidentType {
   return 'alert';
 }
 
-function dispatchToIncident(call: DispatchCall): Incident {
+export function dispatchToIncident(call: DispatchCall): Incident {
   return {
     id: call.id,
     type: mapCallTypeToIncidentType(call.callType),
@@ -80,15 +80,15 @@ const IncidentCard = ({ incident, onClick, isSelected }: { incident: Incident; o
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-0.5">
-            <span className={`h-1.5 w-1.5 rounded-full ${severityColors[incident.severity]} ${
+            <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${severityColors[incident.severity]} ${
               incident.severity === 'critical' ? 'animate-pulse' : ''
             }`} />
-            <span className="text-[8px] font-display text-muted-foreground/70 tracking-wider">{incident.id.slice(0, 12)}</span>
-            <span className="text-[8px] font-display text-muted-foreground/50 ml-auto tabular-nums">{formatTime(incident.timestamp)}</span>
+            <span className="text-[8px] font-display text-muted-foreground/70 tracking-wider truncate">{incident.id.slice(0, 12)}</span>
+            <span className="text-[8px] font-display text-muted-foreground/50 ml-auto tabular-nums shrink-0">{formatTime(incident.timestamp)}</span>
           </div>
           <p className="text-[11px] font-medium text-foreground truncate leading-tight">{incident.title}</p>
           <div className="flex items-center gap-1 mt-0.5">
-            <MapPin className="h-2 w-2 text-muted-foreground/50" />
+            <MapPin className="h-2 w-2 text-muted-foreground/50 shrink-0" />
             <p className="text-[9px] text-muted-foreground/70 truncate">{incident.location}</p>
           </div>
           <div className="flex items-center gap-1.5 mt-1.5">
@@ -111,20 +111,20 @@ const IncidentFeed = ({ onSelectIncident, selectedIncident, cityFilter, onCityFi
   const [typeFilter, setTypeFilter] = useState<IncidentType | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // The API already filters by city server-side, so we pass the city filter directly
   const { data: dispatchData, isLoading } = useDispatchData(
     cityFilter === 'all' ? 'all' : cityFilter.toLowerCase()
   );
 
   const liveIncidents: Incident[] = (dispatchData?.calls || []).map(dispatchToIncident);
 
-  const city = cityFilter || 'all';
+  // Only filter by type and search — city filtering is done server-side
   const filtered = liveIncidents.filter(i => {
     const matchesType = typeFilter === 'all' || i.type === typeFilter;
-    const matchesCity = city === 'all' || i.location.toLowerCase().includes(city.toLowerCase());
     const matchesSearch = searchQuery === '' ||
       i.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       i.location.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesType && matchesCity && matchesSearch;
+    return matchesType && matchesSearch;
   });
 
   filtered.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
