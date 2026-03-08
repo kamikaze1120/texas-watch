@@ -107,9 +107,10 @@ const IncidentFeed = ({ onSelectIncident, selectedIncident, cityFilter, onCityFi
   const [typeFilter, setTypeFilter] = useState<IncidentType | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
+  const city = cityFilter || 'all';
   const filtered = mockIncidents.filter(i => {
     const matchesType = typeFilter === 'all' || i.type === typeFilter;
-    const matchesCity = cityFilter === 'all' || i.location.toLowerCase().includes(cityFilter.toLowerCase());
+    const matchesCity = city === 'all' || i.location.toLowerCase().includes(city.toLowerCase());
     const matchesSearch = searchQuery === '' || 
       i.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       i.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
