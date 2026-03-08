@@ -201,7 +201,7 @@ const IncidentFeed = ({ onSelectIncident, selectedIncident, cityFilter, onCityFi
             )}
           </div>
         ) : (
-          filtered.map(incident => (
+          filtered.map((incident, idx) => (
             <IncidentCard
               key={incident.id}
               incident={incident}
