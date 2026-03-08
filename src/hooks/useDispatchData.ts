@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef } from 'react';
 
 export interface DispatchCall {
   id: string;
@@ -39,11 +40,28 @@ async function fetchDispatchData(city: string = 'all'): Promise<DispatchData> {
 }
 
 export function useDispatchData(city: string = 'all') {
-  return useQuery({
+  const queryClient = useQueryClient();
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Use a short polling interval (15s) for near-realtime updates
+  const query = useQuery({
     queryKey: ['dispatch-data', city],
     queryFn: () => fetchDispatchData(city),
-    refetchInterval: 60000,
-    staleTime: 30000,
+    refetchInterval: 15000,
+    staleTime: 10000,
     retry: 2,
   });
+
+  // Additionally, set up a visibility-based refresh — when user returns to tab, refresh immediately
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        queryClient.invalidateQueries({ queryKey: ['dispatch-data', city] });
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [city, queryClient]);
+
+  return query;
 }

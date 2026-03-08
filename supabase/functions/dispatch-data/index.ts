@@ -215,12 +215,11 @@ serve(async (req) => {
       
       console.log(`Fetched: AUS=${austin.status === 'fulfilled' ? austin.value.length : 'ERR'} DAL=${dallas.status === 'fulfilled' ? dallas.value.length : 'ERR'} HOU=${houston.status === 'fulfilled' ? houston.value.length : 'ERR'} SAT=${sanAntonio.status === 'fulfilled' ? sanAntonio.value.length : 'ERR'}`);
     } else {
-      switch (city.toLowerCase()) {
-        case 'austin': calls = await fetchAustin(); break;
-        case 'dallas': calls = await fetchDallas(); break;
-        case 'houston': calls = await fetchHouston(); break;
-        case 'san antonio': case 'sanantonio': calls = await fetchSanAntonio(); break;
-      }
+      const c = city.toLowerCase().replace(/\s+/g, '');
+      if (c === 'austin') calls = await fetchAustin();
+      else if (c === 'dallas') calls = await fetchDallas();
+      else if (c === 'houston') calls = await fetchHouston();
+      else if (c === 'sanantonio' || c === 'san antonio') calls = await fetchSanAntonio();
     }
 
     calls = deduplicateCalls(calls);
