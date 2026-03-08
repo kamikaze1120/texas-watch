@@ -1,30 +1,26 @@
 import { mockIncidents, type Incident, type Severity } from '@/data/mockData';
-import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
-import { useEffect } from 'react';
-import 'leaflet/dist/leaflet.css';
 
 const severityColors: Record<Severity, string> = {
-  critical: '#ef4444',
-  high: '#f59e0b',
-  medium: '#0ea5e9',
-  low: '#6b7280',
+  critical: 'hsl(0 72% 51%)',
+  high: 'hsl(38 92% 50%)',
+  medium: 'hsl(199 89% 48%)',
+  low: 'hsl(215 12% 48%)',
 };
 
-const severityRadius: Record<Severity, number> = {
-  critical: 10,
-  high: 8,
-  medium: 6,
-  low: 5,
+const TEXAS_BOUNDS = {
+  minLat: 25.8,
+  maxLat: 36.5,
+  minLng: -106.7,
+  maxLng: -93.5,
 };
 
-const FlyToIncident = ({ incident }: { incident: Incident | null }) => {
-  const map = useMap();
-  useEffect(() => {
-    if (incident) {
-      map.flyTo([incident.lat, incident.lng], 12, { duration: 1 });
-    }
-  }, [incident, map]);
-  return null;
+const getPosition = (lat: number, lng: number) => {
+  const x = ((lng - TEXAS_BOUNDS.minLng) / (TEXAS_BOUNDS.maxLng - TEXAS_BOUNDS.minLng)) * 100;
+  const y = 100 - ((lat - TEXAS_BOUNDS.minLat) / (TEXAS_BOUNDS.maxLat - TEXAS_BOUNDS.minLat)) * 100;
+  return {
+    left: `${Math.min(96, Math.max(4, x))}%`,
+    top: `${Math.min(96, Math.max(4, y))}%`,
+  };
 };
 
 interface TacticalMapProps {
@@ -33,88 +29,88 @@ interface TacticalMapProps {
 }
 
 const TacticalMap = ({ selectedIncident, cityFilter }: TacticalMapProps) => {
-  const incidents = cityFilter === 'all'
+  const city = cityFilter || 'all';
+  const incidents = city === 'all'
     ? mockIncidents
-    : mockIncidents.filter(i => i.location.toLowerCase().includes(cityFilter.toLowerCase()));
+    : mockIncidents.filter(i => i.location.toLowerCase().includes(city.toLowerCase()));
 
   return (
-    <div className="relative w-full h-full">
-      <MapContainer
-        center={[31.0, -100.0]}
-        zoom={6}
-        className="w-full h-full z-0"
-        zoomControl={true}
-        attributionControl={true}
-      >
-        <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-          attribution='&copy; <a href="https://carto.com">CARTO</a>'
-        />
+    <div className="relative w-full h-full bg-background tactical-grid overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-secondary/20" />
 
-        {incidents.map((incident) => (
-          <CircleMarker
+      {incidents.map((incident) => {
+        const pos = getPosition(incident.lat, incident.lng);
+        const isSelected = selectedIncident?.id === incident.id;
+        const size = incident.severity === 'critical' ? 14 : incident.severity === 'high' ? 11 : 9;
+
+        return (
+          <div
             key={incident.id}
-            center={[incident.lat, incident.lng]}
-            radius={severityRadius[incident.severity]}
-            pathOptions={{
-              color: severityColors[incident.severity],
-              fillColor: severityColors[incident.severity],
-              fillOpacity: 0.6,
-              weight: 2,
-              opacity: 0.9,
-            }}
+            className="absolute -translate-x-1/2 -translate-y-1/2 group cursor-pointer"
+            style={pos}
+            title={`${incident.id}: ${incident.title}`}
           >
-            <Popup>
-              <div className="min-w-[200px]">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <span
-                    className="h-2 w-2 rounded-full"
-                    style={{ backgroundColor: severityColors[incident.severity] }}
-                  />
-                  <span className="font-display text-[10px] tracking-wider" style={{ color: severityColors[incident.severity] }}>
-                    {incident.severity.toUpperCase()}
-                  </span>
-                  <span className="text-[10px] font-display opacity-60 ml-auto">{incident.id}</span>
-                </div>
-                <p className="font-semibold text-xs mb-1">{incident.title}</p>
-                <p className="text-[11px] opacity-70 mb-1.5">{incident.location}</p>
-                <p className="text-[11px] opacity-80">{incident.description}</p>
-                <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border/30">
-                  <span className="text-[9px] font-display uppercase opacity-50">{incident.source}</span>
-                  <span className={`text-[9px] font-display px-1.5 py-0.5 rounded-full ${
-                    incident.status === 'active' ? 'bg-destructive/20 text-destructive' :
-                    incident.status === 'responding' ? 'bg-warning/20 text-warning' :
-                    'bg-success/20 text-success'
-                  }`}>
-                    {incident.status.toUpperCase()}
-                  </span>
-                </div>
+            {/* Pulse ring for critical/selected */}
+            {(incident.severity === 'critical' || isSelected) && (
+              <div
+                className="absolute inset-0 rounded-full animate-ping opacity-30"
+                style={{
+                  backgroundColor: severityColors[incident.severity],
+                  width: size + 8,
+                  height: size + 8,
+                  top: -4,
+                  left: -4,
+                }}
+              />
+            )}
+            <div
+              className={`rounded-full border-2 transition-transform ${isSelected ? 'scale-150' : 'hover:scale-125'}`}
+              style={{
+                width: size,
+                height: size,
+                backgroundColor: severityColors[incident.severity],
+                borderColor: severityColors[incident.severity],
+                boxShadow: `0 0 ${isSelected ? 16 : 8}px ${severityColors[incident.severity]}`,
+              }}
+            />
+            {/* Tooltip on hover */}
+            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block z-30 pointer-events-none">
+              <div className="glass-panel rounded-lg px-2.5 py-1.5 whitespace-nowrap">
+                <p className="text-[10px] font-display text-foreground font-medium">{incident.title}</p>
+                <p className="text-[9px] text-muted-foreground">{incident.location}</p>
               </div>
-            </Popup>
-          </CircleMarker>
-        ))}
+            </div>
+          </div>
+        );
+      })}
 
-        <FlyToIncident incident={selectedIncident} />
-      </MapContainer>
+      {/* Selected incident detail */}
+      {selectedIncident && (
+        <div className="absolute top-4 right-4 z-20 max-w-xs glass-panel rounded-lg p-3">
+          <p className="text-[9px] font-display text-primary mb-1 tracking-widest">SELECTED INCIDENT</p>
+          <p className="text-xs font-semibold text-foreground">
+            {selectedIncident.id}: {selectedIncident.title}
+          </p>
+          <p className="text-[10px] text-muted-foreground mt-1">{selectedIncident.location}</p>
+          <p className="text-[10px] text-foreground/80 mt-1">{selectedIncident.description}</p>
+        </div>
+      )}
 
-      {/* Map Legend */}
-      <div className="absolute bottom-4 left-4 z-[1000] glass-panel rounded-lg p-3">
+      {/* Legend */}
+      <div className="absolute bottom-4 left-4 z-20 glass-panel rounded-lg p-3">
         <p className="text-[9px] font-display text-muted-foreground mb-2 tracking-widest">THREAT LEVEL</p>
         <div className="flex flex-col gap-1.5">
           {(['critical', 'high', 'medium', 'low'] as Severity[]).map((s) => (
             <div key={s} className="flex items-center gap-2">
-              <span
-                className="h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: severityColors[s] }}
-              />
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: severityColors[s] }} />
               <span className="text-[10px] font-display text-foreground uppercase">{s}</span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Incident count overlay */}
-      <div className="absolute top-4 right-4 z-[1000] glass-panel rounded-lg px-3 py-2">
+      {/* Count */}
+      <div className="absolute top-4 left-4 z-20 glass-panel rounded-lg px-3 py-2">
         <p className="text-[9px] font-display text-muted-foreground tracking-widest">ACTIVE MARKERS</p>
         <p className="text-lg font-display font-bold text-primary">{incidents.length}</p>
       </div>
