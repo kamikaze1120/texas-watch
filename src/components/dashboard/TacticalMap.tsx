@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
 import { type Incident, type Severity } from '@/data/mockData';
 import { useWeatherAlerts } from '@/hooks/useLiveData';
-import { useDispatchData, type DispatchCall } from '@/hooks/useDispatchData';
+import { useDispatchData } from '@/hooks/useDispatchData';
 import 'leaflet/dist/leaflet.css';
 
 const severityColors: Record<Severity, string> = {
@@ -19,11 +19,19 @@ const severityRadius: Record<Severity, number> = {
   low: 4,
 };
 
+function toFiniteCoord(value: unknown): number | null {
+  const parsed = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function FlyToIncident({ incident }: { incident: Incident | null }) {
   const map = useMap();
   useEffect(() => {
-    if (incident && typeof incident.lat === 'number' && typeof incident.lng === 'number' && isFinite(incident.lat) && isFinite(incident.lng)) {
-      map.flyTo([incident.lat, incident.lng], 12, { duration: 1 });
+    const lat = toFiniteCoord(incident?.lat);
+    const lng = toFiniteCoord(incident?.lng);
+
+    if (lat !== null && lng !== null) {
+      map.flyTo([lat, lng], 12, { duration: 1 });
     }
   }, [incident, map]);
   return null;
@@ -39,7 +47,14 @@ const TacticalMap = ({ selectedIncident, cityFilter }: TacticalMapProps) => {
   const { data: dispatch } = useDispatchData(cityFilter === 'all' ? 'all' : cityFilter.toLowerCase());
 
   const allCalls = dispatch?.calls || [];
-  const filteredCalls = allCalls.filter(c => c.lat != null && c.lng != null);
+  const filteredCalls = allCalls.flatMap((call) => {
+    const lat = toFiniteCoord(call.lat);
+    const lng = toFiniteCoord(call.lng);
+
+    if (lat === null || lng === null) return [];
+
+    return [{ ...call, lat, lng }];
+  });
 
   const center: [number, number] = [31.0, -99.5];
 
@@ -64,7 +79,7 @@ const TacticalMap = ({ selectedIncident, cityFilter }: TacticalMapProps) => {
           return (
             <CircleMarker
               key={`${call.id}-${idx}`}
-              center={[call.lat!, call.lng!]}
+              center={[call.lat, call.lng]}
               radius={isSelected ? severityRadius[call.severity] * 2 : severityRadius[call.severity]}
               pathOptions={{
                 color: severityColors[call.severity],
