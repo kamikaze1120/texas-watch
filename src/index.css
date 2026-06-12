@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Figtree:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,67 +6,69 @@
 
 @layer base {
   :root {
-    /* Texas Flag: Navy #002868, White, Red #BF0A30 */
-    --background: 220 30% 5%;
-    --foreground: 210 20% 93%;
+    /* Texas Light — clean light UI, Texas navy #002868 + red #BF0A30 */
+    --background: 210 36% 97%;
+    --foreground: 218 45% 16%;
 
-    --card: 220 28% 8%;
-    --card-foreground: 210 20% 93%;
+    --card: 0 0% 100%;
+    --card-foreground: 218 45% 16%;
 
-    --popover: 220 28% 8%;
-    --popover-foreground: 210 20% 93%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 218 45% 16%;
 
-    --primary: 0 90% 42%;
+    /* Texas navy */
+    --primary: 218 100% 20%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 25% 12%;
-    --secondary-foreground: 210 20% 75%;
+    --secondary: 214 34% 93%;
+    --secondary-foreground: 218 42% 24%;
 
-    --muted: 220 20% 10%;
-    --muted-foreground: 210 10% 50%;
+    --muted: 214 32% 94%;
+    --muted-foreground: 215 18% 42%;
 
-    --accent: 218 100% 18%;
+    /* Texas red */
+    --accent: 349 90% 39%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 90% 50%;
+    --destructive: 349 85% 45%;
     --destructive-foreground: 0 0% 100%;
 
-    --warning: 42 100% 55%;
-    --warning-foreground: 42 100% 10%;
+    --warning: 36 95% 45%;
+    --warning-foreground: 0 0% 100%;
 
-    --success: 145 65% 45%;
-    --success-foreground: 145 65% 10%;
+    --success: 150 62% 36%;
+    --success-foreground: 0 0% 100%;
 
-    --border: 220 20% 14%;
-    --input: 220 20% 12%;
-    --ring: 0 90% 42%;
+    --border: 214 28% 87%;
+    --input: 214 28% 88%;
+    --ring: 218 100% 30%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
-    --sidebar-background: 220 28% 7%;
-    --sidebar-foreground: 210 20% 93%;
-    --sidebar-primary: 0 90% 42%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 218 45% 16%;
+    --sidebar-primary: 218 100% 20%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 25% 12%;
-    --sidebar-accent-foreground: 210 20% 75%;
-    --sidebar-border: 220 20% 14%;
-    --sidebar-ring: 0 90% 42%;
+    --sidebar-accent: 214 34% 93%;
+    --sidebar-accent-foreground: 218 42% 24%;
+    --sidebar-border: 214 28% 87%;
+    --sidebar-ring: 218 100% 30%;
 
-    --font-display: 'Share Tech Mono', monospace;
-    --font-body: 'Rajdhani', sans-serif;
+    --font-display: 'Outfit', system-ui, sans-serif;
+    --font-body: 'Figtree', system-ui, sans-serif;
 
-    --glow-primary: 0 0 30px hsl(0 90% 42% / 0.2), 0 0 8px hsl(0 90% 42% / 0.3);
-    --glow-warning: 0 0 24px hsl(42 100% 55% / 0.15);
-    --glow-destructive: 0 0 24px hsl(0 90% 50% / 0.15);
-    --glow-success: 0 0 24px hsl(145 65% 45% / 0.15);
-    --glow-accent: 0 0 30px hsl(218 100% 18% / 0.3);
+    --glow-primary: 0 8px 24px -10px hsl(218 100% 20% / 0.35);
+    --glow-warning: 0 8px 24px -12px hsl(36 95% 45% / 0.4);
+    --glow-destructive: 0 8px 24px -12px hsl(349 85% 45% / 0.4);
+    --glow-success: 0 8px 24px -12px hsl(150 62% 36% / 0.4);
+    --glow-accent: 0 8px 24px -10px hsl(349 90% 39% / 0.4);
 
-    --glass: 220 28% 8% / 0.88;
-    --glass-border: 220 20% 18%;
+    --glass: 0 0% 100% / 0.82;
+    --glass-border: 214 28% 86%;
 
-    --texas-blue: 218 100% 18%;
-    --texas-red: 0 90% 42%;
-    --texas-white: 0 0% 95%;
+    --texas-blue: 218 100% 20%;
+    --texas-red: 349 90% 39%;
+    --texas-white: 0 0% 100%;
   }
 }
 
@@ -78,13 +80,14 @@
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-body);
-    font-size: 15px;
+    font-size: 16px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
+    letter-spacing: -0.01em;
   }
 }
 
@@ -114,39 +117,40 @@
   }
 
   .text-glow-primary {
-    text-shadow: 0 0 20px hsl(0 90% 42% / 0.6);
+    text-shadow: none;
   }
 
   .text-glow-accent {
-    text-shadow: 0 0 16px hsl(218 100% 35% / 0.5);
+    text-shadow: none;
   }
 
   .glass-panel {
     background: hsl(var(--glass));
-    backdrop-filter: blur(20px);
+    backdrop-filter: blur(16px);
     border: 1px solid hsl(var(--glass-border));
+    box-shadow: 0 10px 30px -18px hsl(218 45% 16% / 0.25);
   }
 
   .tactical-grid {
-    background-image: 
-      linear-gradient(hsl(218 100% 18% / 0.04) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(218 100% 18% / 0.04) 1px, transparent 1px);
-    background-size: 28px 28px;
+    background-image:
+      linear-gradient(hsl(218 100% 20% / 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(218 100% 20% / 0.035) 1px, transparent 1px);
+    background-size: 32px 32px;
   }
 
   .gradient-border {
-    border-image: linear-gradient(135deg, hsl(0 90% 42% / 0.4), hsl(218 100% 18% / 0.2)) 1;
+    border-image: linear-gradient(135deg, hsl(349 90% 39% / 0.4), hsl(218 100% 20% / 0.3)) 1;
   }
 
   .texas-stripe {
-    background: linear-gradient(90deg, hsl(218 100% 18%), hsl(0 90% 42%));
+    background: linear-gradient(90deg, hsl(218 100% 20%), hsl(349 90% 39%));
   }
 
   .scan-line {
     background: linear-gradient(
       180deg,
       transparent 0%,
-      hsl(0 90% 42% / 0.03) 50%,
+      hsl(218 100% 20% / 0.04) 50%,
       transparent 100%
     );
     animation: scan 6s linear infinite;
@@ -179,44 +183,44 @@
   }
 }
 
-/* Leaflet overrides */
+/* Leaflet overrides — light theme */
 .leaflet-container {
-  background: hsl(220 30% 5%) !important;
+  background: hsl(214 34% 93%) !important;
   font-family: var(--font-body) !important;
 }
 
 .leaflet-control-zoom a {
-  background: hsl(220 28% 10%) !important;
-  color: hsl(0 90% 50%) !important;
-  border-color: hsl(220 20% 18%) !important;
-  font-weight: 600 !important;
+  background: hsl(0 0% 100%) !important;
+  color: hsl(218 100% 20%) !important;
+  border-color: hsl(214 28% 86%) !important;
+  font-weight: 700 !important;
 }
 
 .leaflet-control-zoom a:hover {
-  background: hsl(220 28% 15%) !important;
+  background: hsl(214 34% 93%) !important;
 }
 
 .leaflet-control-attribution {
-  background: hsl(220 28% 8% / 0.9) !important;
-  color: hsl(210 10% 50%) !important;
+  background: hsl(0 0% 100% / 0.9) !important;
+  color: hsl(215 18% 42%) !important;
   font-size: 10px !important;
   backdrop-filter: blur(8px);
 }
 
 .leaflet-control-attribution a {
-  color: hsl(0 90% 50%) !important;
+  color: hsl(218 100% 30%) !important;
 }
 
 .leaflet-popup-content-wrapper {
-  background: hsl(220 28% 8%) !important;
-  color: hsl(210 20% 93%) !important;
-  border: 1px solid hsl(220 20% 18%) !important;
-  border-radius: 8px !important;
-  box-shadow: 0 12px 40px hsl(0 0% 0% / 0.5) !important;
+  background: hsl(0 0% 100%) !important;
+  color: hsl(218 45% 16%) !important;
+  border: 1px solid hsl(214 28% 86%) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 18px 50px -16px hsl(218 45% 16% / 0.35) !important;
 }
 
 .leaflet-popup-tip {
-  background: hsl(220 28% 8%) !important;
+  background: hsl(0 0% 100%) !important;
 }
 
 .leaflet-popup-content {
@@ -227,7 +231,8 @@
 
 /* Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -235,10 +240,10 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: hsl(220 20% 22%);
+  background: hsl(214 22% 78%);
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(0 90% 42% / 0.5);
+  background: hsl(218 100% 20% / 0.45);
 }
