@@ -164,6 +164,9 @@ const Index = () => {
                 onCityFilterChange={setCityFilter}
               />
             )}
+            {mobilePanel === 'cams' && (
+              <TrafficCameras />
+            )}
             {mobilePanel === 'intel' && (
               <IntelPanel />
             )}
