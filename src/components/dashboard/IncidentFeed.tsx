@@ -79,7 +79,7 @@ const IncidentCard = ({ incident, onClick, isSelected }: { incident: Incident; o
         <div className={`p-1.5 rounded ${
           incident.severity === 'critical' ? 'bg-destructive/15 text-destructive' :
           incident.severity === 'high' ? 'bg-warning/15 text-warning' :
-          'bg-accent/20 text-accent-foreground'
+          'bg-primary/10 text-primary'
         }`}>
           <Icon className="h-3.5 w-3.5" />
         </div>
