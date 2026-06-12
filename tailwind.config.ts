@@ -14,8 +14,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        display: ['Share Tech Mono', 'monospace'],
-        body: ['Rajdhani', 'sans-serif'],
+        display: ['Outfit', 'system-ui', 'sans-serif'],
+        body: ['Figtree', 'system-ui', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
