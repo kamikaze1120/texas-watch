@@ -21,7 +21,7 @@ const severityColors: Record<Severity, string> = {
   low: 'bg-muted-foreground',
 };
 
-const TEXAS_CITIES = ['All Cities', 'Austin', 'Dallas', 'Houston', 'San Antonio'];
+const TEXAS_CITIES = ['All Cities', 'Austin', 'Dallas', 'Houston', 'San Antonio', 'Arlington'];
 
 const formatTime = (ts: string) => {
   const d = new Date(ts);

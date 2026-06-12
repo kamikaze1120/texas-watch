@@ -25,6 +25,7 @@ const CITY_COORDS: Record<string, { lat: number; lng: number; spread: number }> 
   'Dallas':      { lat: 32.7767, lng: -96.7970, spread: 0.15 },
   'Houston':     { lat: 29.7604, lng: -95.3698, spread: 0.18 },
   'San Antonio': { lat: 29.4241, lng: -98.4936, spread: 0.14 },
+  'Arlington':   { lat: 32.7357, lng: -97.1081, spread: 0.10 },
 };
 
 function approximateCoords(city: string, id: string): { lat: number; lng: number } {
@@ -186,6 +187,45 @@ async function fetchSanAntonio(): Promise<DispatchCall[]> {
   } catch (err) { console.error('San Antonio fetch error:', err); return []; }
 }
 
+// ── Arlington (DFW): Real-Time Police 911 Active Calls (ArcGIS, live coords) ──
+async function fetchArlington(): Promise<DispatchCall[]> {
+  try {
+    const url = 'https://gis2.arlingtontx.gov/agsext2/rest/services/Police/PoliceIncident/MapServer/0/query?where=1%3D1&outFields=PRA,District,CallTypeDescription,Priority,TimeEntered,CallNumber,Location,CallDate,CallTime&f=json&resultRecordCount=50&returnGeometry=true&outSR=4326&orderByFields=CallNumber+DESC';
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) { console.error(`Arlington ArcGIS: ${res.status}`); return []; }
+    const data = await res.json();
+    if (!data.features?.length) return [];
+    return data.features.map((f: any) => {
+      const r = f.attributes;
+      const id = `ARL-${r.CallNumber || Math.random().toString(36).substr(2, 8)}`;
+      const hasGeo = f.geometry?.x && f.geometry?.y;
+      const callType = (r.CallTypeDescription || 'Police Call').replace(/^\*+\s*/, '').trim();
+      // TimeEntered format: "YYYYMMDDHHMMSS" + tz suffix (e.g. "20260612115711CD")
+      let timestamp = new Date().toISOString();
+      try {
+        const te = String(r.TimeEntered || '').replace(/\D/g, '');
+        if (te.length >= 14) {
+          const iso = `${te.slice(0,4)}-${te.slice(4,6)}-${te.slice(6,8)}T${te.slice(8,10)}:${te.slice(10,12)}:${te.slice(12,14)}-05:00`;
+          const d = new Date(iso);
+          if (!isNaN(d.getTime())) timestamp = d.toISOString();
+        }
+      } catch (_) { /* keep default */ }
+      return {
+        id, city: 'Arlington',
+        callType,
+        description: `${callType}${r.District ? ` - District ${r.District}` : ''}`,
+        location: (r.Location || '').trim() || 'Arlington, TX',
+        timestamp,
+        status: 'Active', priority: r.Priority || '3',
+        severity: mapCallSeverity(callType, r.Priority),
+        source: 'Arlington PD',
+        lat: hasGeo ? f.geometry.y : approximateCoords('Arlington', id).lat,
+        lng: hasGeo ? f.geometry.x : approximateCoords('Arlington', id).lng,
+      };
+    });
+  } catch (err) { console.error('Arlington fetch error:', err); return []; }
+}
+
 function deduplicateCalls(calls: DispatchCall[]): DispatchCall[] {
   const seen = new Map<string, DispatchCall>();
   for (const call of calls) { if (!seen.has(call.id)) seen.set(call.id, call); }
@@ -205,21 +245,23 @@ serve(async (req) => {
     let calls: DispatchCall[] = [];
 
     if (city === 'all') {
-      const [austin, dallas, houston, sanAntonio] = await Promise.allSettled([
-        fetchAustin(), fetchDallas(), fetchHouston(), fetchSanAntonio(),
+      const [austin, dallas, houston, sanAntonio, arlington] = await Promise.allSettled([
+        fetchAustin(), fetchDallas(), fetchHouston(), fetchSanAntonio(), fetchArlington(),
       ]);
       if (austin.status === 'fulfilled') calls.push(...austin.value);
       if (dallas.status === 'fulfilled') calls.push(...dallas.value);
       if (houston.status === 'fulfilled') calls.push(...houston.value);
       if (sanAntonio.status === 'fulfilled') calls.push(...sanAntonio.value);
+      if (arlington.status === 'fulfilled') calls.push(...arlington.value);
       
-      console.log(`Fetched: AUS=${austin.status === 'fulfilled' ? austin.value.length : 'ERR'} DAL=${dallas.status === 'fulfilled' ? dallas.value.length : 'ERR'} HOU=${houston.status === 'fulfilled' ? houston.value.length : 'ERR'} SAT=${sanAntonio.status === 'fulfilled' ? sanAntonio.value.length : 'ERR'}`);
+      console.log(`Fetched: AUS=${austin.status === 'fulfilled' ? austin.value.length : 'ERR'} DAL=${dallas.status === 'fulfilled' ? dallas.value.length : 'ERR'} HOU=${houston.status === 'fulfilled' ? houston.value.length : 'ERR'} SAT=${sanAntonio.status === 'fulfilled' ? sanAntonio.value.length : 'ERR'} ARL=${arlington.status === 'fulfilled' ? arlington.value.length : 'ERR'}`);
     } else {
       const c = city.toLowerCase().replace(/\s+/g, '');
       if (c === 'austin') calls = await fetchAustin();
       else if (c === 'dallas') calls = await fetchDallas();
       else if (c === 'houston') calls = await fetchHouston();
       else if (c === 'sanantonio' || c === 'san antonio') calls = await fetchSanAntonio();
+      else if (c === 'arlington') calls = await fetchArlington();
     }
 
     calls = deduplicateCalls(calls);
@@ -234,6 +276,7 @@ serve(async (req) => {
         dallas: calls.filter(c => c.city === 'Dallas').length,
         houston: calls.filter(c => c.city === 'Houston').length,
         sanAntonio: calls.filter(c => c.city === 'San Antonio').length,
+        arlington: calls.filter(c => c.city === 'Arlington').length,
       },
       lastUpdated: new Date().toISOString(),
     }), {
