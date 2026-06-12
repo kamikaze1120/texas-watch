@@ -187,6 +187,47 @@ async function fetchSanAntonio(): Promise<DispatchCall[]> {
   } catch (err) { console.error('San Antonio fetch error:', err); return []; }
 }
 
+// ── Arlington (DFW): Real-Time Police 911 Active Calls (ArcGIS, live coords) ──
+async function fetchArlington(): Promise<DispatchCall[]> {
+  try {
+    const url = 'https://gis2.arlingtontx.gov/agsext2/rest/services/Police/PoliceIncident/MapServer/0/query?where=1%3D1&outFields=PRA,District,CallTypeDescription,Priority,TimeEntered,CallNumber,Location,CallDate,CallTime&f=json&resultRecordCount=50&returnGeometry=true&outSR=4326&orderByFields=CallNumber+DESC';
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) { console.error(`Arlington ArcGIS: ${res.status}`); return []; }
+    const data = await res.json();
+    if (!data.features?.length) return [];
+    return data.features.map((f: any) => {
+      const r = f.attributes;
+      const id = `ARL-${r.CallNumber || Math.random().toString(36).substr(2, 8)}`;
+      const hasGeo = f.geometry?.x && f.geometry?.y;
+      const callType = (r.CallTypeDescription || 'Police Call').replace(/^\*+\s*/, '').trim();
+      // CallDate is epoch ms (date-only) and CallTime epoch ms (time-only) -> combine
+      let timestamp = new Date().toISOString();
+      try {
+        if (r.CallDate) {
+          const d = new Date(r.CallDate);
+          if (r.CallTime != null) {
+            const t = new Date(r.CallTime);
+            d.setUTCHours(t.getUTCHours(), t.getUTCMinutes(), t.getUTCSeconds());
+          }
+          timestamp = d.toISOString();
+        }
+      } catch (_) { /* keep default */ }
+      return {
+        id, city: 'Arlington',
+        callType,
+        description: `${callType}${r.District ? ` - District ${r.District}` : ''}`,
+        location: (r.Location || '').trim() || 'Arlington, TX',
+        timestamp,
+        status: 'Active', priority: r.Priority || '3',
+        severity: mapCallSeverity(callType, r.Priority),
+        source: 'Arlington PD',
+        lat: hasGeo ? f.geometry.y : approximateCoords('Arlington', id).lat,
+        lng: hasGeo ? f.geometry.x : approximateCoords('Arlington', id).lng,
+      };
+    });
+  } catch (err) { console.error('Arlington fetch error:', err); return []; }
+}
+
 function deduplicateCalls(calls: DispatchCall[]): DispatchCall[] {
   const seen = new Map<string, DispatchCall>();
   for (const call of calls) { if (!seen.has(call.id)) seen.set(call.id, call); }
