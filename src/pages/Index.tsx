@@ -11,7 +11,7 @@ import { type Incident } from '@/data/mockData';
 import { Map, Camera, Brain, Radio, X } from 'lucide-react';
 
 type CenterView = 'map' | 'cameras';
-type MobilePanel = 'map' | 'feed' | 'intel';
+type MobilePanel = 'map' | 'feed' | 'cams' | 'intel';
 
 const Index = () => {
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
