@@ -24,6 +24,7 @@ export interface DispatchData {
     dallas: number;
     houston: number;
     sanAntonio: number;
+    arlington: number;
   };
   lastUpdated: string;
 }
