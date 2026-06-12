@@ -63,6 +63,17 @@ const Index = () => {
               FEED
             </button>
             <button
+              onClick={() => setMobilePanel('cams')}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[11px] font-display tracking-[0.08em] transition-all ${
+                mobilePanel === 'cams'
+                  ? 'bg-primary/10 text-primary border border-primary/20'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Camera className="h-3 w-3" />
+              CAMS
+            </button>
+            <button
               onClick={() => setMobilePanel('intel')}
               className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[11px] font-display tracking-[0.08em] transition-all ${
                 mobilePanel === 'intel'
