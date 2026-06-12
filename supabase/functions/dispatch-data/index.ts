@@ -247,21 +247,23 @@ serve(async (req) => {
     let calls: DispatchCall[] = [];
 
     if (city === 'all') {
-      const [austin, dallas, houston, sanAntonio] = await Promise.allSettled([
-        fetchAustin(), fetchDallas(), fetchHouston(), fetchSanAntonio(),
+      const [austin, dallas, houston, sanAntonio, arlington] = await Promise.allSettled([
+        fetchAustin(), fetchDallas(), fetchHouston(), fetchSanAntonio(), fetchArlington(),
       ]);
       if (austin.status === 'fulfilled') calls.push(...austin.value);
       if (dallas.status === 'fulfilled') calls.push(...dallas.value);
       if (houston.status === 'fulfilled') calls.push(...houston.value);
       if (sanAntonio.status === 'fulfilled') calls.push(...sanAntonio.value);
+      if (arlington.status === 'fulfilled') calls.push(...arlington.value);
       
-      console.log(`Fetched: AUS=${austin.status === 'fulfilled' ? austin.value.length : 'ERR'} DAL=${dallas.status === 'fulfilled' ? dallas.value.length : 'ERR'} HOU=${houston.status === 'fulfilled' ? houston.value.length : 'ERR'} SAT=${sanAntonio.status === 'fulfilled' ? sanAntonio.value.length : 'ERR'}`);
+      console.log(`Fetched: AUS=${austin.status === 'fulfilled' ? austin.value.length : 'ERR'} DAL=${dallas.status === 'fulfilled' ? dallas.value.length : 'ERR'} HOU=${houston.status === 'fulfilled' ? houston.value.length : 'ERR'} SAT=${sanAntonio.status === 'fulfilled' ? sanAntonio.value.length : 'ERR'} ARL=${arlington.status === 'fulfilled' ? arlington.value.length : 'ERR'}`);
     } else {
       const c = city.toLowerCase().replace(/\s+/g, '');
       if (c === 'austin') calls = await fetchAustin();
       else if (c === 'dallas') calls = await fetchDallas();
       else if (c === 'houston') calls = await fetchHouston();
       else if (c === 'sanantonio' || c === 'san antonio') calls = await fetchSanAntonio();
+      else if (c === 'arlington') calls = await fetchArlington();
     }
 
     calls = deduplicateCalls(calls);
