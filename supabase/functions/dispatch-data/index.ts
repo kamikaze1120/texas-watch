@@ -278,6 +278,7 @@ serve(async (req) => {
         dallas: calls.filter(c => c.city === 'Dallas').length,
         houston: calls.filter(c => c.city === 'Houston').length,
         sanAntonio: calls.filter(c => c.city === 'San Antonio').length,
+        arlington: calls.filter(c => c.city === 'Arlington').length,
       },
       lastUpdated: new Date().toISOString(),
     }), {
