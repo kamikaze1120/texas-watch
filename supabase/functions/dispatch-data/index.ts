@@ -200,16 +200,14 @@ async function fetchArlington(): Promise<DispatchCall[]> {
       const id = `ARL-${r.CallNumber || Math.random().toString(36).substr(2, 8)}`;
       const hasGeo = f.geometry?.x && f.geometry?.y;
       const callType = (r.CallTypeDescription || 'Police Call').replace(/^\*+\s*/, '').trim();
-      // CallDate is epoch ms (date-only) and CallTime epoch ms (time-only) -> combine
+      // TimeEntered format: "YYYYMMDDHHMMSS" + tz suffix (e.g. "20260612115711CD")
       let timestamp = new Date().toISOString();
       try {
-        if (r.CallDate) {
-          const d = new Date(r.CallDate);
-          if (r.CallTime != null) {
-            const t = new Date(r.CallTime);
-            d.setUTCHours(t.getUTCHours(), t.getUTCMinutes(), t.getUTCSeconds());
-          }
-          timestamp = d.toISOString();
+        const te = String(r.TimeEntered || '').replace(/\D/g, '');
+        if (te.length >= 14) {
+          const iso = `${te.slice(0,4)}-${te.slice(4,6)}-${te.slice(6,8)}T${te.slice(8,10)}:${te.slice(10,12)}:${te.slice(12,14)}-05:00`;
+          const d = new Date(iso);
+          if (!isNaN(d.getTime())) timestamp = d.toISOString();
         }
       } catch (_) { /* keep default */ }
       return {
