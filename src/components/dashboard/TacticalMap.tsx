@@ -60,6 +60,7 @@ const cityCenters: Record<string, { center: [number, number]; zoom: number }> = 
   dallas: { center: [32.7767, -96.797], zoom: 11 },
   houston: { center: [29.7604, -95.3698], zoom: 11 },
   'san antonio': { center: [29.4241, -98.4936], zoom: 11 },
+  arlington: { center: [32.7357, -97.1081], zoom: 12 },
 };
 
 const cityToMetro: Record<string, string> = {
