@@ -5,132 +5,109 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Scrape camera list and snapshots from TxDOT's rendered HTML
-async function scrapeCameraPage(district: string): Promise<any[]> {
-  const url = `https://its.txdot.gov/its/District/${district}/cameras`;
-  console.log(`Scraping camera page: ${url}`);
-  
-  const res = await fetch(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-    },
-  });
-  
-  if (!res.ok) {
-    console.error(`TxDOT page returned ${res.status}`);
-    return [];
-  }
-  
-  const html = await res.text();
-  
-  // The page is a Knockout.js SPA - the camera data is embedded in the JS
-  // Try to extract camera IDs from the rendered HTML
-  const cameras: any[] = [];
-  
-  // Look for camera IDs in the HTML - they appear in data-bind attributes and text content
-  // Format: DISTRICT.ROAD.INTERSECTION or DISTRICT-ROAD @ INTERSECTION
-  const idPattern = new RegExp(`${district}[.\\-][\\w\\s/@]+`, 'gi');
-  const matches = html.match(idPattern) || [];
-  
-  // Deduplicate
-  const uniqueIds = [...new Set(matches)].slice(0, 20);
-  
-  for (const id of uniqueIds) {
-    cameras.push({
-      id: id.trim(),
-      district,
-    });
-  }
-  
-  return cameras;
+const ITS_BASE = 'https://its.txdot.gov/its/DistrictIts';
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+// Friendly metro name -> TxDOT district code
+const DISTRICTS: Record<string, string> = {
+  austin: 'AUS',
+  dallas: 'DAL',
+  fortworth: 'FTW',
+  houston: 'HOU',
+  sanantonio: 'SAT',
+  elpaso: 'ELP',
+  AUS: 'AUS', DAL: 'DAL', FTW: 'FTW', HOU: 'HOU', SAT: 'SAT', ELP: 'ELP',
+};
+
+function resolveDistrict(input: string | null): string {
+  if (!input) return 'AUS';
+  const key = input.trim().toLowerCase().replace(/\s+/g, '');
+  return DISTRICTS[key] || DISTRICTS[input.toUpperCase()] || input.toUpperCase();
 }
 
-// Try multiple URL patterns for camera snapshots
-async function fetchCameraSnapshot(cameraName: string, district: string): Promise<Response | null> {
-  const urls = [
-    // Old pattern (http)
-    `http://its.txdot.gov/ITS_WEB/FrontEnd/snapshots/${encodeURIComponent(cameraName)}_${district}.jpg`,
-    // HTTPS version  
-    `https://its.txdot.gov/ITS_WEB/FrontEnd/snapshots/${encodeURIComponent(cameraName)}_${district}.jpg`,
-    // New pattern with dots
-    `https://its.txdot.gov/ITS_WEB/FrontEnd/snapshots/${encodeURIComponent(cameraName)}.jpg`,
-  ];
+// Fetch the camera list (locations + status) for a district
+async function fetchCameraList(district: string) {
+  const url = `${ITS_BASE}/GetCctvStatusListByDistrict?districtCode=${district}`;
+  const res = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/json' } });
+  if (!res.ok) throw new Error(`status ${res.status}`);
+  const data = await res.json();
 
-  for (const url of urls) {
-    try {
-      console.log(`Trying: ${url}`);
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': '*/*',
-        },
-        redirect: 'follow',
+  const roadwayMap = data?.roadwayCctvStatuses ?? {};
+  const cameras: any[] = [];
+  for (const roadway of Object.keys(roadwayMap)) {
+    for (const cam of roadwayMap[roadway] || []) {
+      const lat = Number(cam.latitude);
+      const lng = Number(cam.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+      cameras.push({
+        id: cam.icd_Id,
+        name: cam.name || cam.icd_Id,
+        roadway: cam.equipLoc?.roadway || roadway,
+        direction: cam.dirDescription || cam.equipLoc?.direction || '',
+        lat,
+        lng,
+        online: (cam.statusDescription || '').toLowerCase().includes('online'),
+        hasSnapshot: !!cam.hasSnapshot,
+        district,
       });
-      
-      if (response.ok) {
-        const contentType = response.headers.get('content-type') || '';
-        console.log(`${url} returned 200 with content-type: ${contentType}`);
-        // Accept any successful response - TxDOT may return images with various content types
-        return response;
-      }
-      console.log(`${url} returned ${response.status}`);
-      // Consume the body to prevent leaks
-      await response.text();
-    } catch (err) {
-      console.log(`Failed to fetch ${url}: ${err}`);
     }
   }
-  
-  return null;
+  return cameras;
 }
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
     const url = new URL(req.url);
     const action = url.searchParams.get('action') || 'snapshot';
-    
+    const district = resolveDistrict(url.searchParams.get('district'));
+
     if (action === 'list') {
-      // List available cameras for a district
-      const district = url.searchParams.get('district') || 'HOU';
-      const cameras = await scrapeCameraPage(district);
-      return new Response(JSON.stringify({ cameras, district }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      const cameras = await fetchCameraList(district);
+      return new Response(JSON.stringify({ district, cameras, total: cameras.length }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=120' },
       });
     }
-    
-    // Snapshot mode
-    const cameraName = url.searchParams.get('camera');
-    const district = url.searchParams.get('district');
 
-    if (!cameraName || !district) {
-      return new Response(JSON.stringify({ error: 'Missing camera or district parameter' }), {
+    // Snapshot mode — returns a live JPEG image for one camera
+    const camera = url.searchParams.get('camera');
+    if (!camera) {
+      return new Response(JSON.stringify({ error: 'Missing camera parameter' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const response = await fetchCameraSnapshot(cameraName, district);
-    
-    if (!response) {
+    const snapUrl = `${ITS_BASE}/GetCctvSnapshotByIcdId?icdId=${encodeURIComponent(camera)}&districtCode=${district}`;
+    const res = await fetch(snapUrl, { headers: { 'User-Agent': UA, Accept: 'application/json' } });
+
+    if (!res.ok) {
       return new Response(JSON.stringify({ error: 'Camera feed unavailable' }), {
         status: 502,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const imageBuffer = await response.arrayBuffer();
-    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    const data = await res.json();
+    const b64: string | null = data?.snippet || null;
+    if (!b64) {
+      return new Response(JSON.stringify({ error: 'No snapshot available' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-    return new Response(imageBuffer, {
+    // Decode base64 JPEG to binary
+    const binary = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    return new Response(binary, {
       headers: {
         ...corsHeaders,
-        'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=30',
+        'Content-Type': 'image/jpeg',
+        'Cache-Control': 'public, max-age=20',
+        'X-Snapshot-Time': data?.timestampFormatted || '',
       },
     });
   } catch (error) {
