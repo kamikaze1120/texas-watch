@@ -11,7 +11,7 @@ import { type Incident } from '@/data/mockData';
 import { Map, Camera, Brain, Radio, X } from 'lucide-react';
 
 type CenterView = 'map' | 'cameras';
-type MobilePanel = 'map' | 'feed' | 'intel';
+type MobilePanel = 'map' | 'feed' | 'cams' | 'intel';
 
 const Index = () => {
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
@@ -42,7 +42,7 @@ const Index = () => {
           <div className="flex lg:hidden items-center gap-1">
             <button
               onClick={() => setMobilePanel('map')}
-              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[9px] font-display tracking-[0.1em] transition-all ${
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[11px] font-display tracking-[0.08em] transition-all ${
                 mobilePanel === 'map'
                   ? 'bg-primary/10 text-primary border border-primary/20'
                   : 'text-muted-foreground hover:text-foreground'
@@ -53,7 +53,7 @@ const Index = () => {
             </button>
             <button
               onClick={() => setMobilePanel('feed')}
-              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[9px] font-display tracking-[0.1em] transition-all ${
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[11px] font-display tracking-[0.08em] transition-all ${
                 mobilePanel === 'feed'
                   ? 'bg-primary/10 text-primary border border-primary/20'
                   : 'text-muted-foreground hover:text-foreground'
@@ -63,8 +63,19 @@ const Index = () => {
               FEED
             </button>
             <button
+              onClick={() => setMobilePanel('cams')}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[11px] font-display tracking-[0.08em] transition-all ${
+                mobilePanel === 'cams'
+                  ? 'bg-primary/10 text-primary border border-primary/20'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Camera className="h-3 w-3" />
+              CAMS
+            </button>
+            <button
               onClick={() => setMobilePanel('intel')}
-              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[9px] font-display tracking-[0.1em] transition-all ${
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-[11px] font-display tracking-[0.08em] transition-all ${
                 mobilePanel === 'intel'
                   ? 'bg-primary/10 text-primary border border-primary/20'
                   : 'text-muted-foreground hover:text-foreground'
@@ -79,7 +90,7 @@ const Index = () => {
           <div className="hidden lg:flex items-center gap-1">
             <button
               onClick={() => setCenterView('map')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[9px] font-display tracking-[0.12em] transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-display tracking-[0.08em] transition-all ${
                 centerView === 'map'
                   ? 'bg-primary/10 text-primary border border-primary/20'
                   : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
@@ -90,7 +101,7 @@ const Index = () => {
             </button>
             <button
               onClick={() => setCenterView('cameras')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[9px] font-display tracking-[0.12em] transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-display tracking-[0.08em] transition-all ${
                 centerView === 'cameras'
                   ? 'bg-primary/10 text-primary border border-primary/20'
                   : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
@@ -104,7 +115,7 @@ const Index = () => {
           <div className="ml-auto hidden lg:block">
             <button
               onClick={() => setShowIntel(!showIntel)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[9px] font-display tracking-[0.12em] transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-display tracking-[0.08em] transition-all ${
                 showIntel
                   ? 'bg-primary/10 text-primary border border-primary/20'
                   : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
@@ -152,6 +163,9 @@ const Index = () => {
                 cityFilter={cityFilter}
                 onCityFilterChange={setCityFilter}
               />
+            )}
+            {mobilePanel === 'cams' && (
+              <TrafficCameras />
             )}
             {mobilePanel === 'intel' && (
               <IntelPanel />
