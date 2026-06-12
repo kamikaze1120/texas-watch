@@ -10,7 +10,7 @@ const StatsBar = () => {
   const critical = dispatch?.calls?.filter(c => c.severity === 'critical').length || 0;
   const high = dispatch?.calls?.filter(c => c.severity === 'high').length || 0;
   const wxAlerts = weather?.length || 0;
-  const cities = dispatch?.cities || { austin: 0, dallas: 0, houston: 0, sanAntonio: 0 };
+  const cities = dispatch?.cities || { austin: 0, dallas: 0, houston: 0, sanAntonio: 0, arlington: 0 };
 
   const stats = [
     { label: 'TOTAL CALLS', value: total, icon: Activity, color: 'text-primary', bg: 'bg-primary/10' },
