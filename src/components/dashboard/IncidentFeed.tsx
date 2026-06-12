@@ -17,7 +17,7 @@ const typeIcons: Record<IncidentType, React.ElementType> = {
 const severityColors: Record<Severity, string> = {
   critical: 'bg-destructive',
   high: 'bg-warning',
-  medium: 'bg-accent',
+  medium: 'bg-primary',
   low: 'bg-muted-foreground',
 };
 
