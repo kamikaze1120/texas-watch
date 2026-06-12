@@ -24,6 +24,7 @@ const StatsBar = () => {
     { label: 'DAL', value: cities.dallas },
     { label: 'HOU', value: cities.houston },
     { label: 'SAT', value: cities.sanAntonio },
+    { label: 'ARL', value: cities.arlington },
   ];
 
   return (
