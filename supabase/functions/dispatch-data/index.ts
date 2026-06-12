@@ -25,6 +25,7 @@ const CITY_COORDS: Record<string, { lat: number; lng: number; spread: number }> 
   'Dallas':      { lat: 32.7767, lng: -96.7970, spread: 0.15 },
   'Houston':     { lat: 29.7604, lng: -95.3698, spread: 0.18 },
   'San Antonio': { lat: 29.4241, lng: -98.4936, spread: 0.14 },
+  'Arlington':   { lat: 32.7357, lng: -97.1081, spread: 0.10 },
 };
 
 function approximateCoords(city: string, id: string): { lat: number; lng: number } {
