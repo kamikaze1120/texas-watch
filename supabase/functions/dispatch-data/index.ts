@@ -5,6 +5,33 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Hard per-request timeout so one slow upstream open-data source can't stall the
+// whole `city=all` aggregation (which previously made the map load with 0 incidents).
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {},
+  timeoutMs = 8000,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Build a valid ISO timestamp from a (date, time) pair that may already be combined,
+// contain a trailing 'T', or be missing entirely. Returns now() if unparseable so the
+// downstream sort never receives an Invalid Date.
+function safeTimestamp(date?: string, time?: string): string {
+  if (!date) return new Date().toISOString();
+  const datePart = date.includes('T') ? date.split('T')[0] : date.trim();
+  const timePart = time && time.trim() ? time.trim() : '00:00:00';
+  const d = new Date(`${datePart}T${timePart}`);
+  return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+}
+
 interface DispatchCall {
   id: string;
   city: string;
@@ -66,7 +93,7 @@ function mapCallSeverity(callType: string, priority?: string): 'critical' | 'hig
 async function fetchAustin(): Promise<DispatchCall[]> {
   try {
     const url = 'https://data.austintexas.gov/resource/dx9v-zd7x.json?$order=published_date%20DESC&$limit=40';
-    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    const res = await fetchWithTimeout(url, { headers: { 'Accept': 'application/json' } }, 8000);
     if (!res.ok) { console.error(`Austin API: ${res.status}`); return []; }
     const data = await res.json();
     return data.map((r: any) => ({
@@ -90,7 +117,7 @@ async function fetchAustin(): Promise<DispatchCall[]> {
 async function fetchDallas(): Promise<DispatchCall[]> {
   try {
     const url = 'https://www.dallasopendata.com/resource/9fxf-t2tr.json?$limit=50';
-    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    const res = await fetchWithTimeout(url, { headers: { 'Accept': 'application/json' } }, 8000);
     if (!res.ok) { console.error(`Dallas API: ${res.status}`); return []; }
     const data = await res.json();
     return data.map((r: any) => {
@@ -101,7 +128,7 @@ async function fetchDallas(): Promise<DispatchCall[]> {
         callType: r.nature_of_call || r.type_of_incident || 'Unknown',
         description: r.nature_of_call || r.type_of_incident || '',
         location: `${r.block || ''} ${r.location || ''}`.trim() || 'Dallas, TX',
-        timestamp: r.date ? `${r.date}T${r.time || '00:00:00'}` : new Date().toISOString(),
+        timestamp: safeTimestamp(r.date, r.time),
         status: r.status || 'Active',
         priority: r.priority || '3',
         severity: mapCallSeverity(r.nature_of_call || r.type_of_incident || '', r.priority),
@@ -117,7 +144,7 @@ async function fetchHouston(): Promise<DispatchCall[]> {
   try {
     // Houston Crime Viewer ArcGIS Feature Service
     const url = 'https://services1.arcgis.com/EhJ31yVFo1KJDhVa/arcgis/rest/services/Houston_Crime_Data_Public/FeatureServer/0/query?where=1%3D1&outFields=*&orderByFields=Date1+DESC&resultRecordCount=35&f=json';
-    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    const res = await fetchWithTimeout(url, { headers: { 'Accept': 'application/json' } }, 8000);
     if (!res.ok) {
       console.error(`Houston ArcGIS: ${res.status}`);
       return fetchHoustonFallback();
@@ -164,7 +191,7 @@ function fetchHoustonFallback(): DispatchCall[] {
 async function fetchSanAntonio(): Promise<DispatchCall[]> {
   try {
     const url = 'https://data.sanantonio.gov/api/3/action/datastore_search?resource_id=9cb17985-ac16-49a6-ad69-6fe5ad8f2bf5&limit=35&sort=_id%20desc';
-    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    const res = await fetchWithTimeout(url, { headers: { 'Accept': 'application/json' } }, 8000);
     if (!res.ok) { console.error(`San Antonio CKAN: ${res.status}`); return []; }
     const data = await res.json();
     if (!data.result?.records?.length) return [];
@@ -191,7 +218,7 @@ async function fetchSanAntonio(): Promise<DispatchCall[]> {
 async function fetchArlington(): Promise<DispatchCall[]> {
   try {
     const url = 'https://gis2.arlingtontx.gov/agsext2/rest/services/Police/PoliceIncident/MapServer/0/query?where=1%3D1&outFields=PRA,District,CallTypeDescription,Priority,TimeEntered,CallNumber,Location,CallDate,CallTime&f=json&resultRecordCount=50&returnGeometry=true&outSR=4326&orderByFields=CallNumber+DESC';
-    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    const res = await fetchWithTimeout(url, { headers: { 'Accept': 'application/json' } }, 8000);
     if (!res.ok) { console.error(`Arlington ArcGIS: ${res.status}`); return []; }
     const data = await res.json();
     if (!data.features?.length) return [];
